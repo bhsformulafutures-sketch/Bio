@@ -212,7 +212,8 @@ export default function ChallengePage({
                 {challenge.creator.name} challenges you 🎨
               </h1>
               <p className="mt-1 text-sm text-soft">
-                Draw what you think is hiding in the {challenge.hiddenSide} of this photo.
+                Draw — or snap a photo of — what you think is hiding in the{" "}
+                {challenge.hiddenSide} of this photo.
               </p>
             </div>
             <div className="animate-fade-up" style={{ animationDelay: "80ms" }}>

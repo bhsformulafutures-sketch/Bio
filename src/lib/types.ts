@@ -48,3 +48,28 @@ export interface Stroke {
   /** flat [x0, y0, x1, y1, ...] pairs normalized to 0..1 */
   points: number[];
 }
+
+/** A photo the solver drops into the hidden region as (part of) their answer. */
+export interface PhotoFill {
+  kind: "photo";
+  /** JPEG data URL already cover-cropped to the hidden region's aspect ratio */
+  dataUrl: string;
+}
+
+/** One undoable step of an answer: a brush stroke or a photo fill.
+ *  Old drafts stored bare Strokes, so `kind` is absent on strokes. */
+export type DrawAction = (Stroke & { kind?: "stroke" }) | PhotoFill;
+
+export function isPhotoFill(action: DrawAction): action is PhotoFill {
+  return (action as PhotoFill).kind === "photo";
+}
+
+/** One room a browser belongs to (for the room switcher). */
+export interface RoomSummaryDTO {
+  id: string;
+  code: string;
+  createdAt: string;
+  myName: string;
+  partnerName: string | null;
+  active: boolean;
+}

@@ -1,4 +1,4 @@
-import type { ChallengeDTO, SessionDTO } from "./types";
+import type { ChallengeDTO, RoomSummaryDTO, SessionDTO } from "./types";
 
 export class ApiError extends Error {
   status: number;
@@ -49,6 +49,20 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, name }),
+    }),
+
+  listRooms: () => request<{ rooms: RoomSummaryDTO[] }>("/api/rooms"),
+
+  switchRoom: (roomId: string) =>
+    request<SessionDTO>("/api/rooms/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId }),
+    }),
+
+  deleteRoom: (roomId: string) =>
+    request<{ ok: true; hasRooms: boolean }>(`/api/rooms/${roomId}`, {
+      method: "DELETE",
     }),
 
   listChallenges: () =>

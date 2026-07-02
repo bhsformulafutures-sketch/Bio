@@ -56,7 +56,7 @@ export default function LandingPage() {
         <p className="mt-4 text-balance text-lg leading-relaxed text-soft">
           One of you shares half a photo.
           <br />
-          The other draws the missing half.
+          The other imagines the missing half.
           <br />
           <span className="font-semibold text-ink">Then the truth comes out.</span>
         </p>

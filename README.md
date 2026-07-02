@@ -1,10 +1,10 @@
 # Other Half 📸✏️
 
-A private game for exactly two people. One of you uploads a photo — the app
-hides part of it. The other only sees the visible half and draws what they
-imagine is missing. Then the truth is revealed with a satisfying animation,
-a before/after comparison slider, and every round is saved forever in your
-shared gallery.
+A private game for two people at a time. One of you uploads a photo — the app
+hides part of it. The other only sees the visible half and recreates what they
+imagine is missing: draw it, or drop in a photo of your own. Then the truth is
+revealed with a satisfying animation, a before/after comparison slider, and
+every round is saved forever in your shared gallery.
 
 No accounts, no feeds, no likes. Just a room code and the two of you.
 
@@ -15,11 +15,20 @@ No accounts, no feeds, no likes. Just a room code and the two of you.
    both browsers reconnect automatically via an httpOnly cookie.
 3. Either of you sends a **challenge**: pick a photo, choose which part to
    hide (left / right / top / bottom / 🎲 random), send.
-4. The other person sees **only the visible part** and draws the missing
-   half with a minimal pencil/eraser toolkit (undo, redo, clear — nothing
-   else, on purpose).
+4. The other person sees **only the visible part** and fills in the missing
+   half — freehand with a minimal pencil/eraser toolkit (undo, redo, clear),
+   with a **photo of their own** dropped into the hidden region, or both
+   (photo first, doodle on top).
 5. **Finish** → countdown → the mask slides away → the original fades in
    under the drawing → a draggable comparison slider → saved to the gallery.
+
+### Rooms
+
+The header chip is a **room switcher**: one browser can belong to several
+rooms (one per partner-in-crime). From the menu you can hop between rooms,
+create a new one, join another with a code, copy the current code, or
+**delete a room** — which permanently removes every photo, drawing and
+memory in it, for both people (two-tap confirm).
 
 ## Stack
 

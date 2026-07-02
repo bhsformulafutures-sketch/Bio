@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/store";
-import { attachSession } from "@/lib/session";
+import { attachSession, getAllTokens } from "@/lib/session";
 import { sessionToDTO } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +25,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const store = getStore();
+
+    // Already a member of this room from this browser? Just switch to it —
+    // don't become your own partner.
+    for (const token of await getAllTokens()) {
+      const existing = await store.getSessionByToken(token);
+      if (existing?.room.code === code) {
+        const response = NextResponse.json(sessionToDTO(existing), { status: 200 });
+        await attachSession(response, token);
+        return response;
+      }
+    }
+
     const result = await store.joinRoom(code, name);
     if (!result.ok) {
       const message =
@@ -38,7 +50,7 @@ export async function POST(request: NextRequest) {
       sessionToDTO(session ?? { room: result.room, participant: result.participant, partner: null }),
       { status: 200 }
     );
-    attachSession(response, result.participant.token);
+    await attachSession(response, result.participant.token);
     return response;
   } catch (error) {
     console.error("joinRoom failed:", error);

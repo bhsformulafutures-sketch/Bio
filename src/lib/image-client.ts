@@ -1,4 +1,4 @@
-import type { Rect, Stroke } from "./types";
+import { isPhotoFill, type DrawAction, type Rect, type Stroke } from "./types";
 
 /** Longest edge for stored photos — plenty for phones, kind to bandwidth. */
 export const MAX_DIMENSION = 1600;
@@ -114,6 +114,72 @@ export function paintStrokes(
   }
   ctx.globalCompositeOperation = "source-over";
   ctx.restore();
+}
+
+/** Cover-crop an image into the hidden region's aspect ratio and return a
+ *  compact JPEG data URL, ready to be painted with drawPhotoFill. */
+export function photoToRegionDataUrl(img: HTMLImageElement, region: Rect): string {
+  const { canvas } = downscale(img);
+  const scale = Math.max(region.w / canvas.width, region.h / canvas.height);
+  const cropW = region.w / scale;
+  const cropH = region.h / scale;
+  const cropX = (canvas.width - cropW) / 2;
+  const cropY = (canvas.height - cropH) / 2;
+  const out = document.createElement("canvas");
+  out.width = Math.round(region.w);
+  out.height = Math.round(region.h);
+  const ctx = out.getContext("2d")!;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, out.width, out.height);
+  return out.toDataURL("image/jpeg", 0.82);
+}
+
+/** Decoded-image cache so replaying photo fills never re-fetches data URLs. */
+const photoCache = new Map<string, HTMLImageElement>();
+
+async function photoImage(dataUrl: string): Promise<HTMLImageElement> {
+  const cached = photoCache.get(dataUrl);
+  if (cached) return cached;
+  const img = await loadImage(dataUrl);
+  photoCache.set(dataUrl, img);
+  return img;
+}
+
+/** Replay a full answer (photo fills + strokes) onto a w×h canvas context.
+ *  Async because photo fills decode from data URLs; strokes alone are sync. */
+export async function paintActions(
+  ctx: CanvasRenderingContext2D,
+  actions: DrawAction[],
+  width: number,
+  height: number,
+  region: Rect
+): Promise<void> {
+  // Decode every photo up front so painting itself stays ordered and fast.
+  const photos = new Map<string, HTMLImageElement>();
+  for (const action of actions) {
+    if (isPhotoFill(action) && !photos.has(action.dataUrl)) {
+      photos.set(action.dataUrl, await photoImage(action.dataUrl));
+    }
+  }
+  let run: Stroke[] = [];
+  const flush = () => {
+    if (run.length > 0) paintStrokes(ctx, run, width, height, region);
+    run = [];
+  };
+  for (const action of actions) {
+    if (isPhotoFill(action)) {
+      flush();
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(region.x, region.y, region.w, region.h);
+      ctx.clip();
+      ctx.drawImage(photos.get(action.dataUrl)!, region.x, region.y, region.w, region.h);
+      ctx.restore();
+    } else {
+      run.push(action);
+    }
+  }
+  flush();
 }
 
 /** Deterministic merge: transparent drawing layered over the original. */

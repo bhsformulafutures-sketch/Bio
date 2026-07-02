@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       sessionToDTO({ room, participant, partner: null }),
       { status: 201 }
     );
-    attachSession(response, participant.token);
+    await attachSession(response, participant.token);
     return response;
   } catch (error) {
     console.error("createRoom failed:", error);

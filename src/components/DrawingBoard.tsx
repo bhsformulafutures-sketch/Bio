@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChallengeDTO, Stroke, Tool } from "@/lib/types";
+import type { ChallengeDTO, DrawAction, Stroke, Tool } from "@/lib/types";
 import { hiddenRect } from "@/lib/region";
-import { canvasToBlob, paintStrokes } from "@/lib/image-client";
+import {
+  canvasToBlob,
+  fileToImage,
+  paintActions,
+  photoToRegionDataUrl,
+} from "@/lib/image-client";
 import { Button, Card } from "./ui";
+import { toast } from "./Toast";
 
 const COLORS = [
   "#221c15", "#ffffff", "#e5484d", "#f76b15", "#ffc53d",
@@ -36,10 +42,12 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
   );
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const historyRef = useRef<Stroke[][]>([[]]);
+  const historyRef = useRef<DrawAction[][]>([[]]);
   const indexRef = useRef(0);
+  const replaySeqRef = useRef(0);
   const liveStrokeRef = useRef<Stroke | null>(null);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [tool, setTool] = useState<Tool>("pencil");
   const [color, setColor] = useState(COLORS[0]);
@@ -48,15 +56,23 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
   const [historyState, setHistoryState] = useState({ index: 0, length: 1 });
   const [armed, setArmed] = useState(false);
 
-  const strokes = () => historyRef.current[indexRef.current];
-  const hasInk = historyState.index > 0 || strokes().length > 0;
+  const actions = () => historyRef.current[indexRef.current];
+  const hasInk = historyState.index > 0 || actions().length > 0;
 
-  const replay = useCallback(() => {
+  const replay = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const seq = ++replaySeqRef.current;
+    const snapshot = actions();
     const ctx = canvas.getContext("2d")!;
+    // Photo decoding is async; only the newest replay may touch the canvas.
+    const buffer = document.createElement("canvas");
+    buffer.width = width;
+    buffer.height = height;
+    await paintActions(buffer.getContext("2d")!, snapshot, width, height, rect);
+    if (seq !== replaySeqRef.current) return;
     ctx.clearRect(0, 0, width, height);
-    paintStrokes(ctx, strokes(), width, height, rect);
+    ctx.drawImage(buffer, 0, 0);
   }, [width, height, rect]);
 
   /* Restore an interrupted draft on mount. */
@@ -64,7 +80,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     try {
       const raw = localStorage.getItem(draftKey(challenge.id));
       if (raw) {
-        const saved = JSON.parse(raw) as Stroke[];
+        const saved = JSON.parse(raw) as DrawAction[];
         if (Array.isArray(saved) && saved.length > 0) {
           historyRef.current = [[], saved];
           indexRef.current = 1;
@@ -79,14 +95,14 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
 
   const persistDraft = useCallback(() => {
     try {
-      localStorage.setItem(draftKey(challenge.id), JSON.stringify(strokes()));
+      localStorage.setItem(draftKey(challenge.id), JSON.stringify(actions()));
     } catch {
       /* storage full or blocked — drawing still works */
     }
   }, [challenge.id]);
 
   const commit = useCallback(
-    (next: Stroke[]) => {
+    (next: DrawAction[]) => {
       const history = historyRef.current.slice(0, indexRef.current + 1);
       history.push(next);
       if (history.length > MAX_HISTORY) history.shift();
@@ -163,7 +179,27 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     if (!stroke) return;
     liveStrokeRef.current = null;
     lastPointRef.current = null;
-    commit([...strokes(), stroke]);
+    commit([...actions(), stroke]);
+  };
+
+  /* ---- photo answers ---- */
+
+  const addPhoto = async (file: File | undefined) => {
+    if (photoInputRef.current) photoInputRef.current.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast("That doesn't look like an image.", "error");
+      return;
+    }
+    try {
+      const img = await fileToImage(file);
+      const dataUrl = photoToRegionDataUrl(img, rect);
+      commit([...actions(), { kind: "photo", dataUrl }]);
+      replay();
+      toast("Photo placed — draw on top or finish!");
+    } catch {
+      toast("Couldn't read that image — try another one.", "error");
+    }
   };
 
   /* ---- history actions ---- */
@@ -185,7 +221,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
   };
 
   const clearAll = () => {
-    if (strokes().length === 0) return;
+    if (actions().length === 0) return;
     commit([]);
     replay();
   };
@@ -201,7 +237,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     exportCanvas.width = width;
     exportCanvas.height = height;
     const ctx = exportCanvas.getContext("2d")!;
-    paintStrokes(ctx, strokes(), width, height, rect);
+    await paintActions(ctx, actions(), width, height, rect);
     const blob = await canvasToBlob(exportCanvas, "image/png");
     onFinish(blob, exportCanvas.toDataURL("image/png"));
   };
@@ -247,8 +283,8 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
             style={hintStyle}
           >
             <div className="absolute inset-1.5 rounded-xl border-2 border-dashed border-faint/70" />
-            <span className="animate-float rounded-full bg-ink/75 px-3.5 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
-              ✏️ Draw the missing part here
+            <span className="animate-float rounded-full bg-ink/75 px-3.5 py-1.5 text-center text-xs font-semibold text-white backdrop-blur-sm">
+              ✏️ Draw it — or 📷 drop in a photo
             </span>
           </div>
         )}
@@ -301,7 +337,21 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
             <ToolButton active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
               <EraserIcon />
             </ToolButton>
+            <ToolButton
+              active={false}
+              onClick={() => photoInputRef.current?.click()}
+              label="Answer with a photo"
+            >
+              <CameraIcon />
+            </ToolButton>
           </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => addPhoto(e.target.files?.[0])}
+          />
 
           <input
             type="range"
@@ -328,7 +378,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
             <IconButton onClick={redo} disabled={!canRedo} label="Redo">
               <UndoIcon flipped />
             </IconButton>
-            <IconButton onClick={clearAll} disabled={strokes().length === 0} label="Clear drawing">
+            <IconButton onClick={clearAll} disabled={actions().length === 0} label="Clear drawing">
               <TrashIcon />
             </IconButton>
           </div>
@@ -338,7 +388,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
           size="lg"
           onClick={finish}
           loading={submitting}
-          disabled={!hasInk || strokes().length === 0}
+          disabled={!hasInk || actions().length === 0}
           className={armed ? "bg-ink hover:bg-ink" : ""}
         >
           {submitting
@@ -417,6 +467,15 @@ function PencilIcon() {
   return (
     <svg {...iconProps}>
       <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg {...iconProps}>
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+      <circle cx="12" cy="13" r="3" />
     </svg>
   );
 }

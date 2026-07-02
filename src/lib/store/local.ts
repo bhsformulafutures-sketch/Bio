@@ -107,6 +107,20 @@ export class LocalStore implements Store {
     return { participant, room, partner };
   }
 
+  deleteRoom(roomId: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.rooms = db.rooms.filter((r) => r.id !== roomId);
+      db.participants = db.participants.filter((p) => p.roomId !== roomId);
+      db.challenges = db.challenges.filter((c) => c.roomId !== roomId);
+      await this.writeDb(db);
+      await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
+        recursive: true,
+        force: true,
+      });
+    });
+  }
+
   createChallenge(data: NewChallenge) {
     return this.locked(async () => {
       const db = await this.readDb();

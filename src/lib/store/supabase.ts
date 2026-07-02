@@ -162,6 +162,29 @@ export class SupabaseStore implements Store {
     };
   }
 
+  async deleteRoom(roomId: string): Promise<void> {
+    // Storage first: list each challenge folder under the room and remove
+    // its files. Supabase Storage lists one folder level at a time.
+    const prefix = `rooms/${roomId}`;
+    const { data: folders } = await this.client.storage.from(BUCKET).list(prefix);
+    const paths: string[] = [];
+    for (const folder of folders ?? []) {
+      const { data: files } = await this.client.storage
+        .from(BUCKET)
+        .list(`${prefix}/${folder.name}`);
+      for (const file of files ?? []) {
+        paths.push(`${prefix}/${folder.name}/${file.name}`);
+      }
+    }
+    for (let i = 0; i < paths.length; i += 100) {
+      await this.client.storage.from(BUCKET).remove(paths.slice(i, i + 100));
+    }
+
+    // Rows: participants and challenges cascade from the room.
+    const { error } = await this.client.from("rooms").delete().eq("id", roomId);
+    if (error) throw new Error(error.message);
+  }
+
   async createChallenge(data: NewChallenge): Promise<ChallengeRecord> {
     const { data: row, error } = await this.client
       .from("challenges")

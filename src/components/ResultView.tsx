@@ -11,7 +11,7 @@ type View = "compare" | "original" | "drawing" | "merged";
 const VIEWS: Array<{ id: View; label: string }> = [
   { id: "compare", label: "Compare" },
   { id: "original", label: "Original" },
-  { id: "drawing", label: "Drawing" },
+  { id: "drawing", label: "Imagined" },
   { id: "merged", label: "Merged" },
 ];
 

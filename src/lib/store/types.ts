@@ -64,6 +64,8 @@ export interface Store {
   createRoom(name: string): Promise<{ room: RoomRecord; participant: ParticipantRecord }>;
   joinRoom(code: string, name: string): Promise<JoinResult>;
   getSessionByToken(token: string): Promise<SessionRecord | null>;
+  /** Permanently removes the room, its participants, challenges and files. */
+  deleteRoom(roomId: string): Promise<void>;
   createChallenge(data: NewChallenge): Promise<ChallengeRecord>;
   listChallenges(roomId: string): Promise<ChallengeRecord[]>;
   getChallenge(id: string): Promise<ChallengeRecord | null>;

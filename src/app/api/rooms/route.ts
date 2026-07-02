@@ -1,63 +1,48 @@
 import { NextResponse } from "next/server";
-import { getStore } from "@/lib/store";
-import { getAllTokens, SESSION_COOKIE, writeSessionCookies } from "@/lib/session";
 import { cookies } from "next/headers";
+import { getStore } from "@/lib/store";
+import { getUser, ROOM_COOKIE } from "@/lib/session";
 import type { RoomSummaryDTO } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/rooms — every room this browser belongs to, active first.
- * Dead tokens (deleted rooms) are pruned from the cookie as a side effect.
- */
+/** GET /api/rooms — every room this person belongs to, active first. */
 export async function GET() {
-  const tokens = await getAllTokens();
-  if (tokens.length === 0) {
-    return NextResponse.json({ error: "No session" }, { status: 401 });
-  }
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "No session" }, { status: 401 });
 
-  const jar = await cookies();
-  const activeToken = jar.get(SESSION_COOKIE)?.value ?? null;
   const store = getStore();
-
-  const rooms: RoomSummaryDTO[] = [];
-  const liveTokens: string[] = [];
-  let liveActiveToken: string | null = null;
+  const jar = await cookies();
+  const activeRoomId = jar.get(ROOM_COOKIE)?.value ?? null;
 
   try {
-    for (const token of tokens) {
-      const session = await store.getSessionByToken(token);
-      if (!session) continue; // room was deleted — drop the token
-      liveTokens.push(token);
-      const active = token === activeToken;
-      if (active) liveActiveToken = token;
+    const memberships = await store.listMemberships(user.id);
+    if (memberships.length === 0) {
+      return NextResponse.json({ error: "No session" }, { status: 401 });
+    }
+
+    const rooms: RoomSummaryDTO[] = [];
+    for (const membership of memberships) {
+      const room = await store.getRoom(membership.roomId);
+      if (!room) continue;
+      const participants = await store.getRoomParticipants(room.id);
+      const partner = participants.find((p) => p.id !== membership.id) ?? null;
       rooms.push({
-        id: session.room.id,
-        code: session.room.code,
-        createdAt: session.room.createdAt,
-        myName: session.participant.name,
-        partnerName: session.partner?.name ?? null,
-        active,
+        id: room.id,
+        code: room.code,
+        createdAt: room.createdAt,
+        myName: membership.name,
+        partnerName: partner?.name ?? null,
+        active: room.id === activeRoomId,
       });
     }
+
+    // If nothing is marked active (fresh cookie), highlight the first room.
+    if (!rooms.some((r) => r.active) && rooms[0]) rooms[0].active = true;
+
+    return NextResponse.json({ rooms });
   } catch (error) {
     console.error("listRooms failed:", error);
     return NextResponse.json({ error: "Couldn't load your rooms." }, { status: 500 });
   }
-
-  if (rooms.length === 0) {
-    const response = NextResponse.json({ error: "No session" }, { status: 401 });
-    writeSessionCookies(response, [], null);
-    return response;
-  }
-
-  // If the active room disappeared, fall back to the first live one.
-  if (!liveActiveToken) {
-    liveActiveToken = liveTokens[0];
-    rooms[0] = { ...rooms[0], active: true };
-  }
-
-  const response = NextResponse.json({ rooms });
-  writeSessionCookies(response, liveTokens, liveActiveToken);
-  return response;
 }

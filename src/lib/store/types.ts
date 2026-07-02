@@ -1,4 +1,21 @@
-import type { ChallengeStatus, HiddenSide } from "../types";
+import type { ChallengeStatus, HiddenSide, RandomStatus } from "../types";
+
+export interface UserRecord {
+  id: string;
+  phone: string;
+  name: string;
+  avatar: string | null;
+  token: string;
+  createdAt: string;
+}
+
+export interface VerificationRecord {
+  phone: string;
+  codeHash: string;
+  expiresAt: string;
+  attempts: number;
+  createdAt: string;
+}
 
 export interface RoomRecord {
   id: string;
@@ -9,6 +26,7 @@ export interface RoomRecord {
 export interface ParticipantRecord {
   id: string;
   roomId: string;
+  userId: string | null;
   name: string;
   token: string;
   joinedAt: string;
@@ -45,7 +63,51 @@ export interface NewChallenge {
   visiblePath: string;
 }
 
+export interface RandomRecord {
+  id: string;
+  roomId: string;
+  starterId: string;
+  prompt: string;
+  category: string;
+  status: RandomStatus;
+  expiresAt: string;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface RandomSubmissionRecord {
+  id: string;
+  randomId: string;
+  participantId: string;
+  photoPath: string;
+  width: number;
+  height: number;
+  caption: string | null;
+  createdAt: string;
+}
+
+export interface NewRandom {
+  id: string;
+  roomId: string;
+  starterId: string;
+  prompt: string;
+  category: string;
+  expiresAt: string;
+}
+
+export interface NewRandomSubmission {
+  randomId: string;
+  participantId: string;
+  photoPath: string;
+  width: number;
+  height: number;
+  caption: string | null;
+}
+
+/** Everything the app knows about the signed-in person and, if they're in
+ *  one, the active room and their partner. */
 export interface SessionRecord {
+  user: UserRecord;
   participant: ParticipantRecord;
   room: RoomRecord;
   partner: ParticipantRecord | null;
@@ -53,7 +115,7 @@ export interface SessionRecord {
 
 export type JoinResult =
   | { ok: true; room: RoomRecord; participant: ParticipantRecord }
-  | { ok: false; reason: "not_found" | "full" };
+  | { ok: false; reason: "not_found" | "full" | "already_in" };
 
 /**
  * Persistence boundary. Two implementations:
@@ -61,11 +123,28 @@ export type JoinResult =
  *  - LocalStore   (zero-config dev: JSON file + local blobs)
  */
 export interface Store {
-  createRoom(name: string): Promise<{ room: RoomRecord; participant: ParticipantRecord }>;
-  joinRoom(code: string, name: string): Promise<JoinResult>;
-  getSessionByToken(token: string): Promise<SessionRecord | null>;
+  // ── Identity & phone verification ──────────────────────────
+  upsertVerification(phone: string, codeHash: string, expiresAt: string): Promise<void>;
+  getVerification(phone: string): Promise<VerificationRecord | null>;
+  incrementVerificationAttempts(phone: string): Promise<void>;
+  deleteVerification(phone: string): Promise<void>;
+  getUserByPhone(phone: string): Promise<UserRecord | null>;
+  getUserByToken(token: string): Promise<UserRecord | null>;
+  getUserById(id: string): Promise<UserRecord | null>;
+  createUser(phone: string, name: string, avatar: string | null): Promise<UserRecord>;
+  updateUser(id: string, patch: { name?: string; avatar?: string | null }): Promise<UserRecord>;
+
+  // ── Rooms & membership ─────────────────────────────────────
+  createRoom(userId: string, name: string): Promise<{ room: RoomRecord; participant: ParticipantRecord }>;
+  joinRoom(code: string, userId: string, name: string): Promise<JoinResult>;
+  getRoom(roomId: string): Promise<RoomRecord | null>;
+  getMembership(userId: string, roomId: string): Promise<ParticipantRecord | null>;
+  listMemberships(userId: string): Promise<ParticipantRecord[]>;
+  getRoomParticipants(roomId: string): Promise<ParticipantRecord[]>;
   /** Permanently removes the room, its participants, challenges and files. */
   deleteRoom(roomId: string): Promise<void>;
+
+  // ── Game 1 · Other Half ────────────────────────────────────
   createChallenge(data: NewChallenge): Promise<ChallengeRecord>;
   listChallenges(roomId: string): Promise<ChallengeRecord[]>;
   getChallenge(id: string): Promise<ChallengeRecord | null>;
@@ -76,6 +155,17 @@ export interface Store {
     drawingPath: string
   ): Promise<ChallengeRecord | "conflict" | null>;
   setMergedPath(id: string, mergedPath: string): Promise<void>;
+
+  // ── Game 2 · Random Challenge ──────────────────────────────
+  createRandom(data: NewRandom): Promise<RandomRecord>;
+  listRandoms(roomId: string): Promise<RandomRecord[]>;
+  getRandom(id: string): Promise<RandomRecord | null>;
+  addRandomSubmission(data: NewRandomSubmission): Promise<RandomSubmissionRecord>;
+  listRandomSubmissions(randomId: string): Promise<RandomSubmissionRecord[]>;
+  markRandomCompleted(id: string): Promise<void>;
+  markRandomExpired(id: string): Promise<void>;
+
+  // ── Files ──────────────────────────────────────────────────
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;
   fileUrl(path: string): string;
 }

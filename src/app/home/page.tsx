@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ChallengeDTO, SessionDTO } from "@/lib/types";
-import { api } from "@/lib/api";
+import type { ChallengeDTO, RandomDTO, SessionDTO } from "@/lib/types";
+import { api, ApiError } from "@/lib/api";
 import { Header } from "@/components/Header";
-import { Button, Card, Spinner } from "@/components/ui";
+import { Avatar, Button, Card, Skeleton } from "@/components/ui";
 import { GalleryCard, formatDate } from "@/components/GalleryCard";
+import { RandomCard } from "@/components/RandomCard";
 import { toast } from "@/components/Toast";
 
 const POLL_MS = 12_000;
@@ -16,18 +17,24 @@ export default function HomePage() {
   const router = useRouter();
   const [session, setSession] = useState<SessionDTO | null>(null);
   const [challenges, setChallenges] = useState<ChallengeDTO[] | null>(null);
+  const [randoms, setRandoms] = useState<RandomDTO[] | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [me, list] = await Promise.all([api.me(), api.listChallenges()]);
+      const [me, list, rand] = await Promise.all([
+        api.me(),
+        api.listChallenges(),
+        api.listRandoms(),
+      ]);
       setSession(me);
       setChallenges(list.challenges);
+      setRandoms(rand.randoms);
     } catch (error) {
       if ((error as { status?: number }).status === 401) router.replace("/");
     }
   }, [router]);
 
-  /* Initial load + gentle polling + refresh when the tab regains focus. */
   useEffect(() => {
     refresh();
     const interval = setInterval(refresh, POLL_MS);
@@ -39,10 +46,18 @@ export default function HomePage() {
     };
   }, [refresh]);
 
-  if (!session || !challenges) {
+  if (!session || !challenges || !randoms) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <Spinner className="size-7 text-accent" />
+      <div className="min-h-dvh">
+        <Header session={session} />
+        <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-8">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+          </div>
+          <Skeleton className="h-40" />
+        </main>
       </div>
     );
   }
@@ -50,10 +65,13 @@ export default function HomePage() {
   const yourTurn = challenges.filter((c) => c.status === "waiting" && !c.mine);
   const waitingOnPartner = challenges.filter((c) => c.status === "waiting" && c.mine);
   const memories = challenges.filter((c) => c.status === "completed");
+  const openRandom = randoms.find((r) => r.status === "open") ?? null;
+  const doneRandoms = randoms.filter((r) => r.status !== "open");
   const partnerName = session.partner?.name;
+  const totalMoments = memories.length + doneRandoms.length;
 
   const share = async () => {
-    const text = `Join me on Other Half! Room code: ${session.room.code} — ${window.location.origin}`;
+    const text = `Join me on Two of Us 💞 Room code: ${session.room.code} — ${window.location.origin}`;
     try {
       if (navigator.share) await navigator.share({ text });
       else {
@@ -65,36 +83,112 @@ export default function HomePage() {
     }
   };
 
+  const startRandom = async () => {
+    if (openRandom) {
+      router.push(`/random/${openRandom.id}`);
+      return;
+    }
+    setStarting(true);
+    try {
+      const { random } = await api.startRandom();
+      router.push(`/random/${random.id}`);
+    } catch (error) {
+      toast(error instanceof ApiError ? error.message : "Couldn't start a challenge.", "error");
+      setStarting(false);
+    }
+  };
+
   return (
-    <div className="min-h-dvh pb-28">
+    <div className="min-h-dvh pb-16">
       <Header session={session} />
       <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pt-6">
-        <div className="animate-fade-up">
-          <h1 className="font-display text-2xl font-bold">
-            Hi {session.participant.name} 👋
-          </h1>
-          <p className="mt-1 text-[15px] text-soft">
-            {partnerName
-              ? `You & ${partnerName} · ${memories.length} ${memories.length === 1 ? "memory" : "memories"} so far`
-              : "Your room is ready — invite your other half."}
-          </p>
+        <div className="animate-fade-up flex items-center gap-3">
+          <Avatar avatar={session.user.avatar} name={session.user.name} className="size-11 text-xl" />
+          <div>
+            <h1 className="font-display text-2xl font-bold leading-tight">
+              Hi {session.participant.name}
+            </h1>
+            <p className="text-[15px] text-soft">
+              {partnerName
+                ? `You & ${partnerName} · ${totalMoments} ${totalMoments === 1 ? "moment" : "moments"} together`
+                : "Your room is ready — invite your other half."}
+            </p>
+          </div>
         </div>
 
         {!session.partner && (
-          <Card className="animate-fade-up flex flex-col items-center gap-4 p-6 text-center">
+          <Card className="animate-fade-up flex flex-col items-center gap-4 overflow-hidden p-6 text-center">
             <p className="text-sm text-soft">Share this code with your person</p>
             <p className="font-mono text-4xl font-bold tracking-[0.25em] text-ink">
               {session.room.code}
             </p>
-            <Button onClick={share}>Send invite</Button>
+            <Button onClick={share}>Send invite 💌</Button>
           </Card>
+        )}
+
+        {/* Play together — the two mini-games */}
+        <section className="animate-fade-up flex flex-col gap-3">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Play together</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => router.push("/new")}
+              className="group relative flex flex-col items-start gap-2 overflow-hidden rounded-3xl
+                bg-gradient-to-br from-accent-soft to-surface p-4 text-left shadow-card
+                transition-all hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98]"
+            >
+              <span className="text-3xl transition-transform group-hover:scale-110">🎨</span>
+              <span className="font-display text-lg font-bold leading-tight">Other Half</span>
+              <span className="text-xs text-soft">Hide half a photo — they imagine the rest.</span>
+            </button>
+            <button
+              onClick={startRandom}
+              disabled={starting}
+              className="group relative flex flex-col items-start gap-2 overflow-hidden rounded-3xl
+                bg-gradient-to-br from-dusk-soft to-surface p-4 text-left shadow-card
+                transition-all hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98] disabled:opacity-60"
+            >
+              <span className="text-3xl transition-transform group-hover:scale-110">🎲</span>
+              <span className="font-display text-lg font-bold leading-tight">
+                {openRandom ? "Continue" : "Random"}
+              </span>
+              <span className="text-xs text-soft">
+                {openRandom ? "You've got one in progress." : "A surprise prompt. 24 hours. Go!"}
+              </span>
+            </button>
+          </div>
+        </section>
+
+        {openRandom && (
+          <section className="animate-fade-up flex flex-col gap-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
+              Happening now 🎲
+            </h2>
+            <Link
+              href={`/random/${openRandom.id}`}
+              className="group flex items-center gap-4 rounded-2xl border border-dusk/20 bg-dusk-soft/50 p-4
+                transition-all hover:-translate-y-0.5 hover:shadow-card active:scale-[0.99]"
+            >
+              <span className="animate-breathe text-3xl">📸</span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-ink">{openRandom.prompt}</p>
+                <p className="text-sm text-soft">
+                  {openRandom.mineSubmitted
+                    ? openRandom.partnerSubmitted
+                      ? "You both answered — tap to reveal!"
+                      : `Waiting on ${partnerName ?? "your partner"}`
+                    : "Your move — snap it before time runs out"}
+                </p>
+              </div>
+              <span className="flex size-8 items-center justify-center rounded-full bg-dusk-soft text-dusk transition-transform group-hover:translate-x-0.5">
+                →
+              </span>
+            </Link>
+          </section>
         )}
 
         {yourTurn.length > 0 && (
           <section className="animate-fade-up flex flex-col gap-3">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
-              Your turn ✏️
-            </h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Your turn ✏️</h2>
             {yourTurn.map((c) => (
               <Link
                 key={c.id}
@@ -113,9 +207,7 @@ export default function HomePage() {
                   />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">
-                    {c.creator.name} sent you a challenge
-                  </p>
+                  <p className="font-semibold">{c.creator.name} sent you a challenge</p>
                   <p className="text-sm text-soft">
                     Imagine the missing {c.hiddenSide} · {formatDate(c.createdAt)}
                   </p>
@@ -159,14 +251,12 @@ export default function HomePage() {
         )}
 
         <section className="animate-fade-up flex flex-col gap-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
-            Memories 💛
-          </h2>
-          {memories.length === 0 ? (
-            <div className="dotted flex flex-col items-center gap-2 rounded-3xl border border-line py-12 text-center">
-              <span className="text-3xl">🖼️</span>
-              <p className="max-w-56 text-sm text-soft">
-                Completed challenges live here forever. Send the first one!
+          <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Memories 💛</h2>
+          {memories.length === 0 && doneRandoms.length === 0 ? (
+            <div className="dotted flex flex-col items-center gap-3 rounded-3xl border border-line py-14 text-center">
+              <span className="animate-float text-4xl">🌱</span>
+              <p className="max-w-60 text-sm text-soft">
+                Every finished game blossoms into a memory here. Start one above and plant the first!
               </p>
             </div>
           ) : (
@@ -174,23 +264,13 @@ export default function HomePage() {
               {memories.map((c) => (
                 <GalleryCard key={c.id} challenge={c} />
               ))}
+              {doneRandoms.map((r) => (
+                <RandomCard key={r.id} random={r} />
+              ))}
             </div>
           )}
         </section>
       </main>
-
-      {/* thumb-reach primary action */}
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-gradient-to-t from-paper via-paper/90 to-transparent px-4 pb-6 pt-8">
-        <div className="mx-auto max-w-3xl">
-          <Button
-            size="lg"
-            className="w-full shadow-lift"
-            onClick={() => router.push("/new")}
-          >
-            📷 New challenge
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,4 +1,11 @@
-import type { ChallengeDTO, RoomSummaryDTO, SessionDTO } from "./types";
+import type {
+  AuthStateDTO,
+  ChallengeDTO,
+  RandomDTO,
+  RoomSummaryDTO,
+  SessionDTO,
+  UserDTO,
+} from "./types";
 
 export class ApiError extends Error {
   status: number;
@@ -34,37 +41,48 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+const json = (body: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+
 export const api = {
   me: () => request<SessionDTO>("/api/me"),
 
-  createRoom: (name: string) =>
-    request<SessionDTO>("/api/room", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    }),
+  // ── Auth & profile ─────────────────────────────────────────
+  authState: () => request<AuthStateDTO>("/api/auth/state"),
 
-  joinRoom: (code: string, name: string) =>
-    request<SessionDTO>("/api/room/join", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, name }),
-    }),
+  requestCode: (phone: string) =>
+    request<{ ok: true; devCode?: string }>("/api/auth/request-code", json({ phone })),
+
+  verifyCode: (phone: string, code: string) =>
+    request<AuthStateDTO>("/api/auth/verify", json({ phone, code })),
+
+  getAvatars: () => request<{ avatars: string[] }>("/api/profile"),
+
+  saveProfile: (name: string, avatar: string | null) =>
+    request<{ user: UserDTO }>("/api/profile", json({ name, avatar })),
+
+  logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
+
+  // ── Rooms ──────────────────────────────────────────────────
+  createRoom: () => request<SessionDTO>("/api/room", { method: "POST" }),
+
+  joinRoom: (code: string) =>
+    request<SessionDTO>("/api/room/join", json({ code })),
 
   listRooms: () => request<{ rooms: RoomSummaryDTO[] }>("/api/rooms"),
 
   switchRoom: (roomId: string) =>
-    request<SessionDTO>("/api/rooms/active", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomId }),
-    }),
+    request<SessionDTO>("/api/rooms/active", json({ roomId })),
 
   deleteRoom: (roomId: string) =>
     request<{ ok: true; hasRooms: boolean }>(`/api/rooms/${roomId}`, {
       method: "DELETE",
     }),
 
+  // ── Game 1 · Other Half ────────────────────────────────────
   listChallenges: () =>
     request<{ challenges: ChallengeDTO[] }>("/api/challenges"),
 
@@ -93,5 +111,24 @@ export const api = {
       `/api/challenges/${id}/merged`,
       { method: "POST", body: form }
     );
+  },
+
+  // ── Game 2 · Random Challenge ──────────────────────────────
+  listRandoms: () => request<{ randoms: RandomDTO[] }>("/api/randoms"),
+
+  startRandom: () => request<{ random: RandomDTO }>("/api/randoms", { method: "POST" }),
+
+  getRandom: (id: string) => request<{ random: RandomDTO }>(`/api/randoms/${id}`),
+
+  submitRandom: (id: string, photo: Blob, width: number, height: number, caption: string) => {
+    const form = new FormData();
+    form.append("photo", photo, "photo.jpg");
+    form.append("width", String(width));
+    form.append("height", String(height));
+    form.append("caption", caption);
+    return request<{ random: RandomDTO }>(`/api/randoms/${id}/submit`, {
+      method: "POST",
+      body: form,
+    });
   },
 };

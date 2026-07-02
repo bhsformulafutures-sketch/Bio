@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { RoomSummaryDTO, SessionDTO } from "@/lib/types";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import { Spinner } from "./ui";
+import { Avatar, Spinner } from "./ui";
 import { toast } from "./Toast";
 
 export function Logo({ className = "text-xl" }: { className?: string }) {
   return (
     <span className={`font-display font-bold tracking-tight text-ink ${className}`}>
-      other<span className="text-accent">half</span>
+      two of <span className="text-accent">us</span>
     </span>
   );
 }
@@ -30,6 +31,7 @@ export function Header({ session }: { session: SessionDTO | null }) {
 
 /** The header chip: shows the active room, opens the room menu. */
 function RoomSwitcher({ session }: { session: SessionDTO }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [rooms, setRooms] = useState<RoomSummaryDTO[] | null>(null);
   const [joining, setJoining] = useState(false);
@@ -81,7 +83,7 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
   const createRoom = async () => {
     setBusy("create");
     try {
-      await api.createRoom(session.participant.name);
+      await api.createRoom();
       goHome();
     } catch (error) {
       toast(error instanceof ApiError ? error.message : "Couldn't create a room.", "error");
@@ -97,12 +99,22 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
     }
     setBusy("join");
     try {
-      await api.joinRoom(code, session.participant.name);
+      await api.joinRoom(code);
       goHome();
     } catch (error) {
       toast(error instanceof ApiError ? error.message : "Couldn't join that room.", "error");
       setBusy(null);
     }
+  };
+
+  const signOut = async () => {
+    setBusy("signout");
+    try {
+      await api.logout();
+    } catch {
+      /* sign out locally regardless */
+    }
+    router.replace("/");
   };
 
   const deleteActive = async () => {
@@ -136,11 +148,11 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5
+        className="flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3
           text-xs font-semibold tracking-widest text-soft transition-all hover:border-faint active:scale-95"
-        title="Rooms"
+        title="Rooms & profile"
       >
-        <span className="size-1.5 rounded-full bg-accent" />
+        <Avatar avatar={session.user.avatar} name={session.user.name} className="size-6 text-xs" />
         {session.room.code}
         <svg
           viewBox="0 0 24 24"
@@ -242,6 +254,10 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
                   {confirmDelete
                     ? "Really delete? Every memory goes, for both of you"
                     : "🗑️ Delete this room"}
+                </MenuItem>
+                <div className="my-1 border-t border-line/70" />
+                <MenuItem onClick={signOut} busy={busy === "signout"} disabled={busy !== null}>
+                  👋 Sign out
                 </MenuItem>
               </>
             )}

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { challengeToDTO } from "@/lib/serialize";
 import type { HiddenSide } from "@/lib/types";
 import { SIDES } from "@/lib/region";
+import { notifyChallengeSent } from "@/lib/notify/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,13 @@ export async function POST(request: NextRequest) {
       originalPath,
       visiblePath,
     });
+
+    // Let the partner know something's waiting (best-effort, never blocks).
+    await notifyChallengeSent(
+      session.room.id,
+      session.participant.id,
+      session.participant.name
+    );
 
     return NextResponse.json(
       { challenge: challengeToDTO(challenge, session) },

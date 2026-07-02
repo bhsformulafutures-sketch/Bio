@@ -1,37 +1,13 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getStore } from "./store";
-import type { SessionRecord } from "./store/types";
+import type { SessionRecord, UserRecord } from "./store/types";
 
-/** Active membership token — the room the browser is currently "in". */
-export const SESSION_COOKIE = "oh_token";
-/** Every membership token this browser holds, comma-separated. */
-export const TOKENS_COOKIE = "oh_tokens";
+/** The signed-in person (a global account keyed by phone). */
+export const AUTH_COOKIE = "oh_uid";
+/** Which room the browser is currently looking at. */
+export const ROOM_COOKIE = "oh_room";
 const ONE_YEAR = 60 * 60 * 24 * 365;
-
-/** Resolve the current participant from the httpOnly session cookie. */
-export async function getSession(): Promise<SessionRecord | null> {
-  const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  try {
-    return await getStore().getSessionByToken(token);
-  } catch {
-    return null;
-  }
-}
-
-/** All membership tokens in this browser, active one first. */
-export async function getAllTokens(): Promise<string[]> {
-  const jar = await cookies();
-  const active = jar.get(SESSION_COOKIE)?.value;
-  const rest = (jar.get(TOKENS_COOKIE)?.value ?? "")
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
-  const ordered = active ? [active, ...rest] : rest;
-  return [...new Set(ordered)];
-}
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -41,25 +17,60 @@ const COOKIE_OPTIONS = {
   path: "/",
 } as const;
 
-/** Persist the full membership list plus which room is active. */
-export function writeSessionCookies(
-  response: NextResponse,
-  tokens: string[],
-  activeToken: string | null
-): void {
-  const unique = [...new Set(tokens.filter(Boolean))];
-  if (activeToken) response.cookies.set(SESSION_COOKIE, activeToken, COOKIE_OPTIONS);
-  else response.cookies.set(SESSION_COOKIE, "", { ...COOKIE_OPTIONS, maxAge: 0 });
-  if (unique.length > 0)
-    response.cookies.set(TOKENS_COOKIE, unique.join(","), COOKIE_OPTIONS);
-  else response.cookies.set(TOKENS_COOKIE, "", { ...COOKIE_OPTIONS, maxAge: 0 });
+/** Resolve the signed-in user from the auth cookie (no room needed). */
+export async function getUser(): Promise<UserRecord | null> {
+  const jar = await cookies();
+  const token = jar.get(AUTH_COOKIE)?.value;
+  if (!token) return null;
+  try {
+    return await getStore().getUserByToken(token);
+  } catch {
+    return null;
+  }
 }
 
-/** Add one membership and make it active (create room / join room). */
-export async function attachSession(
-  response: NextResponse,
-  token: string
-): Promise<void> {
-  const tokens = await getAllTokens();
-  writeSessionCookies(response, [token, ...tokens], token);
+/**
+ * Resolve the full session: the user plus their active room and partner.
+ * Returns null when the person isn't signed in or isn't in any room yet.
+ */
+export async function getSession(): Promise<SessionRecord | null> {
+  const user = await getUser();
+  if (!user) return null;
+  const store = getStore();
+
+  try {
+    const memberships = await store.listMemberships(user.id);
+    if (memberships.length === 0) return null;
+
+    const jar = await cookies();
+    const activeRoomId = jar.get(ROOM_COOKIE)?.value;
+    const membership =
+      memberships.find((m) => m.roomId === activeRoomId) ?? memberships[0];
+
+    const room = await store.getRoom(membership.roomId);
+    if (!room) return null;
+
+    const participants = await store.getRoomParticipants(room.id);
+    const partner = participants.find((p) => p.id !== membership.id) ?? null;
+
+    return { user, participant: membership, room, partner };
+  } catch {
+    return null;
+  }
+}
+
+/** Sign a user in on this browser. */
+export function setAuthCookie(response: NextResponse, userToken: string): void {
+  response.cookies.set(AUTH_COOKIE, userToken, COOKIE_OPTIONS);
+}
+
+/** Point the browser at a specific room. */
+export function setActiveRoom(response: NextResponse, roomId: string): void {
+  response.cookies.set(ROOM_COOKIE, roomId, COOKIE_OPTIONS);
+}
+
+/** Sign out completely. */
+export function clearSession(response: NextResponse): void {
+  response.cookies.set(AUTH_COOKIE, "", { ...COOKIE_OPTIONS, maxAge: 0 });
+  response.cookies.set(ROOM_COOKIE, "", { ...COOKIE_OPTIONS, maxAge: 0 });
 }

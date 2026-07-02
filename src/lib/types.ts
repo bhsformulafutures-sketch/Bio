@@ -1,11 +1,29 @@
 export type HiddenSide = "left" | "right" | "top" | "bottom";
 export type ChallengeStatus = "waiting" | "completed";
+export type RandomStatus = "open" | "completed" | "expired";
 
-/** What the client knows about the signed-in pair. */
+/** The signed-in person's profile (no phone leaves the server in full). */
+export interface UserDTO {
+  id: string;
+  name: string;
+  avatar: string | null;
+  phoneHint: string | null; // last 4 digits, e.g. "•••• 4821"
+}
+
+/** What the client knows about the signed-in pair, inside a room. */
 export interface SessionDTO {
+  user: UserDTO;
   participant: { id: string; name: string };
   room: { id: string; code: string; createdAt: string };
-  partner: { id: string; name: string } | null;
+  partner: { id: string; name: string; avatar: string | null } | null;
+}
+
+/** Onboarding state — drives which step the client shows. */
+export interface AuthStateDTO {
+  authenticated: boolean;
+  user: UserDTO | null;
+  hasRoom: boolean;
+  needsProfile: boolean;
 }
 
 /** A challenge as seen by one particular viewer. URLs are withheld
@@ -72,4 +90,34 @@ export interface RoomSummaryDTO {
   myName: string;
   partnerName: string | null;
   active: boolean;
+}
+
+/** One person's photo answer to a Random Challenge. */
+export interface RandomSubmissionDTO {
+  participant: { id: string; name: string };
+  photoUrl: string;
+  width: number;
+  height: number;
+  caption: string | null;
+  createdAt: string;
+  mine: boolean;
+}
+
+/** A Random Challenge as seen by one viewer. The partner's photo is
+ *  withheld until both people have answered — no peeking early. */
+export interface RandomDTO {
+  id: string;
+  prompt: string;
+  category: string;
+  status: RandomStatus;
+  expiresAt: string;
+  createdAt: string;
+  completedAt: string | null;
+  starter: { id: string; name: string };
+  /** true once the viewer has submitted their own photo */
+  mineSubmitted: boolean;
+  /** true once the partner has submitted (photo may still be hidden) */
+  partnerSubmitted: boolean;
+  /** submissions the viewer is allowed to see (own always; partner's once both in) */
+  submissions: RandomSubmissionDTO[];
 }

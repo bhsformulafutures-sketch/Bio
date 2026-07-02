@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/store";
 import { getSession } from "@/lib/session";
 import { challengeToDTO } from "@/lib/serialize";
+import { notifyChallengeCompleted } from "@/lib/notify/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,14 @@ export async function POST(
     if (!result) {
       return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
     }
+
+    // Tell the creator their partner answered (best-effort).
+    await notifyChallengeCompleted(
+      result.roomId,
+      result.creatorId,
+      session.participant.name
+    );
+
     return NextResponse.json({ challenge: challengeToDTO(result, session) });
   } catch (error) {
     console.error("completeChallenge failed:", error);

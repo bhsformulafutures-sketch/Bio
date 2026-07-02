@@ -4,16 +4,36 @@ import type {
   ChallengeRecord,
   JoinResult,
   NewChallenge,
+  NewRandom,
+  NewRandomSubmission,
   ParticipantRecord,
+  RandomRecord,
+  RandomSubmissionRecord,
   RoomRecord,
-  SessionRecord,
   Store,
+  UserRecord,
+  VerificationRecord,
 } from "./types";
 
 const BUCKET = "photos";
 
 /* Supabase rows are snake_case; the app speaks camelCase. */
 
+interface UserRow {
+  id: string;
+  phone: string;
+  name: string;
+  avatar: string | null;
+  token: string;
+  created_at: string;
+}
+interface VerificationRow {
+  phone: string;
+  code_hash: string;
+  expires_at: string;
+  attempts: number;
+  created_at: string;
+}
 interface RoomRow {
   id: string;
   code: string;
@@ -22,6 +42,7 @@ interface RoomRow {
 interface ParticipantRow {
   id: string;
   room_id: string;
+  user_id: string | null;
   name: string;
   token: string;
   joined_at: string;
@@ -43,6 +64,44 @@ interface ChallengeRow {
   created_at: string;
   completed_at: string | null;
 }
+interface RandomRow {
+  id: string;
+  room_id: string;
+  starter_id: string;
+  prompt: string;
+  category: string;
+  status: "open" | "completed" | "expired";
+  expires_at: string;
+  created_at: string;
+  completed_at: string | null;
+}
+interface RandomSubmissionRow {
+  id: string;
+  random_id: string;
+  participant_id: string;
+  photo_path: string;
+  width: number;
+  height: number;
+  caption: string | null;
+  created_at: string;
+}
+
+const mapUser = (u: UserRow): UserRecord => ({
+  id: u.id,
+  phone: u.phone,
+  name: u.name,
+  avatar: u.avatar,
+  token: u.token,
+  createdAt: u.created_at,
+});
+
+const mapVerification = (v: VerificationRow): VerificationRecord => ({
+  phone: v.phone,
+  codeHash: v.code_hash,
+  expiresAt: v.expires_at,
+  attempts: v.attempts,
+  createdAt: v.created_at,
+});
 
 const mapRoom = (r: RoomRow): RoomRecord => ({
   id: r.id,
@@ -53,6 +112,7 @@ const mapRoom = (r: RoomRow): RoomRecord => ({
 const mapParticipant = (p: ParticipantRow): ParticipantRecord => ({
   id: p.id,
   roomId: p.room_id,
+  userId: p.user_id,
   name: p.name,
   token: p.token,
   joinedAt: p.joined_at,
@@ -76,6 +136,29 @@ const mapChallenge = (c: ChallengeRow): ChallengeRecord => ({
   completedAt: c.completed_at,
 });
 
+const mapRandom = (r: RandomRow): RandomRecord => ({
+  id: r.id,
+  roomId: r.room_id,
+  starterId: r.starter_id,
+  prompt: r.prompt,
+  category: r.category,
+  status: r.status,
+  expiresAt: r.expires_at,
+  createdAt: r.created_at,
+  completedAt: r.completed_at,
+});
+
+const mapSubmission = (s: RandomSubmissionRow): RandomSubmissionRecord => ({
+  id: s.id,
+  randomId: s.random_id,
+  participantId: s.participant_id,
+  photoPath: s.photo_path,
+  width: s.width,
+  height: s.height,
+  caption: s.caption,
+  createdAt: s.created_at,
+});
+
 export class SupabaseStore implements Store {
   private client: SupabaseClient;
   private baseUrl: string;
@@ -87,8 +170,109 @@ export class SupabaseStore implements Store {
     this.baseUrl = url.replace(/\/$/, "");
   }
 
-  async createRoom(name: string) {
-    // Retry a couple of times on the (very unlikely) code collision.
+  // ── Identity & phone verification ──────────────────────────
+
+  async upsertVerification(phone: string, codeHash: string, expiresAt: string): Promise<void> {
+    const { error } = await this.client
+      .from("phone_verifications")
+      .upsert(
+        { phone, code_hash: codeHash, expires_at: expiresAt, attempts: 0, created_at: new Date().toISOString() },
+        { onConflict: "phone" }
+      );
+    if (error) throw new Error(error.message);
+  }
+
+  async getVerification(phone: string): Promise<VerificationRecord | null> {
+    const { data, error } = await this.client
+      .from("phone_verifications")
+      .select()
+      .eq("phone", phone)
+      .maybeSingle<VerificationRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapVerification(data) : null;
+  }
+
+  async incrementVerificationAttempts(phone: string): Promise<void> {
+    const current = await this.getVerification(phone);
+    if (!current) return;
+    const { error } = await this.client
+      .from("phone_verifications")
+      .update({ attempts: current.attempts + 1 })
+      .eq("phone", phone);
+    if (error) throw new Error(error.message);
+  }
+
+  async deleteVerification(phone: string): Promise<void> {
+    const { error } = await this.client
+      .from("phone_verifications")
+      .delete()
+      .eq("phone", phone);
+    if (error) throw new Error(error.message);
+  }
+
+  async getUserByPhone(phone: string): Promise<UserRecord | null> {
+    const { data, error } = await this.client
+      .from("users")
+      .select()
+      .eq("phone", phone)
+      .maybeSingle<UserRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapUser(data) : null;
+  }
+
+  async getUserByToken(token: string): Promise<UserRecord | null> {
+    const { data, error } = await this.client
+      .from("users")
+      .select()
+      .eq("token", token)
+      .maybeSingle<UserRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapUser(data) : null;
+  }
+
+  async getUserById(id: string): Promise<UserRecord | null> {
+    const { data, error } = await this.client
+      .from("users")
+      .select()
+      .eq("id", id)
+      .maybeSingle<UserRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapUser(data) : null;
+  }
+
+  async createUser(phone: string, name: string, avatar: string | null): Promise<UserRecord> {
+    const existing = await this.getUserByPhone(phone);
+    if (existing) return existing;
+    const { data, error } = await this.client
+      .from("users")
+      .insert({ phone, name, avatar, token: newToken() })
+      .select()
+      .single<UserRow>();
+    if (error) throw new Error(error.message);
+    return mapUser(data);
+  }
+
+  async updateUser(id: string, patch: { name?: string; avatar?: string | null }): Promise<UserRecord> {
+    const update: Record<string, unknown> = {};
+    if (patch.name !== undefined) update.name = patch.name;
+    if (patch.avatar !== undefined) update.avatar = patch.avatar;
+    const { data, error } = await this.client
+      .from("users")
+      .update(update)
+      .eq("id", id)
+      .select()
+      .single<UserRow>();
+    if (error) throw new Error(error.message);
+    if (patch.name !== undefined) {
+      // Keep the person's name in sync across their memberships.
+      await this.client.from("participants").update({ name: patch.name }).eq("user_id", id);
+    }
+    return mapUser(data);
+  }
+
+  // ── Rooms & membership ─────────────────────────────────────
+
+  async createRoom(userId: string, name: string) {
     for (let attempt = 0; attempt < 3; attempt++) {
       const code = newRoomCode();
       const { data: room, error } = await this.client
@@ -100,23 +284,23 @@ export class SupabaseStore implements Store {
         if (error.code === "23505") continue; // unique violation → new code
         throw new Error(error.message);
       }
-      const participant = await this.insertParticipant(room.id, name);
+      const participant = await this.insertParticipant(room.id, userId, name);
       return { room: mapRoom(room), participant };
     }
     throw new Error("Could not allocate a room code");
   }
 
-  private async insertParticipant(roomId: string, name: string) {
+  private async insertParticipant(roomId: string, userId: string, name: string) {
     const { data, error } = await this.client
       .from("participants")
-      .insert({ room_id: roomId, name, token: newToken() })
+      .insert({ room_id: roomId, user_id: userId, name, token: newToken() })
       .select()
       .single<ParticipantRow>();
     if (error) throw new Error(error.message);
     return mapParticipant(data);
   }
 
-  async joinRoom(code: string, name: string): Promise<JoinResult> {
+  async joinRoom(code: string, userId: string, name: string): Promise<JoinResult> {
     const { data: room, error } = await this.client
       .from("rooms")
       .select()
@@ -125,65 +309,89 @@ export class SupabaseStore implements Store {
     if (error) throw new Error(error.message);
     if (!room) return { ok: false, reason: "not_found" };
 
-    const { count, error: countError } = await this.client
+    const { data: members, error: membersError } = await this.client
       .from("participants")
-      .select("id", { count: "exact", head: true })
+      .select()
       .eq("room_id", room.id);
-    if (countError) throw new Error(countError.message);
-    if ((count ?? 0) >= 2) return { ok: false, reason: "full" };
+    if (membersError) throw new Error(membersError.message);
+    const rows = (members as ParticipantRow[]) ?? [];
+    if (rows.some((p) => p.user_id === userId)) {
+      return { ok: false, reason: "already_in" };
+    }
+    if (rows.length >= 2) return { ok: false, reason: "full" };
 
-    const participant = await this.insertParticipant(room.id, name);
+    const participant = await this.insertParticipant(room.id, userId, name);
     return { ok: true, room: mapRoom(room), participant };
   }
 
-  async getSessionByToken(token: string): Promise<SessionRecord | null> {
-    const { data: p, error } = await this.client
+  async getRoom(roomId: string): Promise<RoomRecord | null> {
+    const { data, error } = await this.client
+      .from("rooms")
+      .select()
+      .eq("id", roomId)
+      .maybeSingle<RoomRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapRoom(data) : null;
+  }
+
+  async getMembership(userId: string, roomId: string): Promise<ParticipantRecord | null> {
+    const { data, error } = await this.client
       .from("participants")
       .select()
-      .eq("token", token)
+      .eq("user_id", userId)
+      .eq("room_id", roomId)
       .maybeSingle<ParticipantRow>();
     if (error) throw new Error(error.message);
-    if (!p) return null;
+    return data ? mapParticipant(data) : null;
+  }
 
-    const [{ data: room }, { data: others }] = await Promise.all([
-      this.client.from("rooms").select().eq("id", p.room_id).single<RoomRow>(),
-      this.client
-        .from("participants")
-        .select()
-        .eq("room_id", p.room_id)
-        .neq("id", p.id),
-    ]);
-    if (!room) return null;
-    const partner = (others as ParticipantRow[] | null)?.[0];
-    return {
-      participant: mapParticipant(p),
-      room: mapRoom(room),
-      partner: partner ? mapParticipant(partner) : null,
-    };
+  async listMemberships(userId: string): Promise<ParticipantRecord[]> {
+    const { data, error } = await this.client
+      .from("participants")
+      .select()
+      .eq("user_id", userId)
+      .order("joined_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as ParticipantRow[]).map(mapParticipant);
+  }
+
+  async getRoomParticipants(roomId: string): Promise<ParticipantRecord[]> {
+    const { data, error } = await this.client
+      .from("participants")
+      .select()
+      .eq("room_id", roomId);
+    if (error) throw new Error(error.message);
+    return (data as ParticipantRow[]).map(mapParticipant);
   }
 
   async deleteRoom(roomId: string): Promise<void> {
-    // Storage first: list each challenge folder under the room and remove
-    // its files. Supabase Storage lists one folder level at a time.
-    const prefix = `rooms/${roomId}`;
-    const { data: folders } = await this.client.storage.from(BUCKET).list(prefix);
-    const paths: string[] = [];
-    for (const folder of folders ?? []) {
-      const { data: files } = await this.client.storage
-        .from(BUCKET)
-        .list(`${prefix}/${folder.name}`);
-      for (const file of files ?? []) {
-        paths.push(`${prefix}/${folder.name}/${file.name}`);
-      }
-    }
-    for (let i = 0; i < paths.length; i += 100) {
-      await this.client.storage.from(BUCKET).remove(paths.slice(i, i + 100));
-    }
+    // Storage first: remove every file under the room's folder tree.
+    await this.removeFolder(`rooms/${roomId}`);
 
-    // Rows: participants and challenges cascade from the room.
+    // Rows: participants, challenges, randoms and submissions cascade.
     const { error } = await this.client.from("rooms").delete().eq("id", roomId);
     if (error) throw new Error(error.message);
   }
+
+  /** Recursively collect and remove every object under a storage prefix. */
+  private async removeFolder(prefix: string): Promise<void> {
+    const { data: entries } = await this.client.storage.from(BUCKET).list(prefix);
+    const files: string[] = [];
+    for (const entry of entries ?? []) {
+      const child = `${prefix}/${entry.name}`;
+      // Folders have no id; recurse. Files have an id and are removed directly.
+      if (entry.id === null || entry.id === undefined) {
+        await this.removeFolder(child);
+      } else {
+        files.push(child);
+      }
+    }
+    for (let i = 0; i < files.length; i += 100) {
+      await this.client.storage.from(BUCKET).remove(files.slice(i, i + 100));
+    }
+  }
+
+  // ── Game 1 · Other Half ────────────────────────────────────
 
   async createChallenge(data: NewChallenge): Promise<ChallengeRecord> {
     const { data: row, error } = await this.client
@@ -226,8 +434,6 @@ export class SupabaseStore implements Store {
   }
 
   async completeChallenge(id: string, solverId: string, drawingPath: string) {
-    // The status filter makes this a compare-and-swap: a second submission
-    // matches zero rows instead of overwriting the first.
     const { data, error } = await this.client
       .from("challenges")
       .update({
@@ -254,11 +460,96 @@ export class SupabaseStore implements Store {
     if (error) throw new Error(error.message);
   }
 
-  async saveFile(
-    path: string,
-    data: Uint8Array,
-    contentType: string
-  ): Promise<void> {
+  // ── Game 2 · Random Challenge ──────────────────────────────
+
+  async createRandom(data: NewRandom): Promise<RandomRecord> {
+    const { data: row, error } = await this.client
+      .from("randoms")
+      .insert({
+        id: data.id,
+        room_id: data.roomId,
+        starter_id: data.starterId,
+        prompt: data.prompt,
+        category: data.category,
+        expires_at: data.expiresAt,
+      })
+      .select()
+      .single<RandomRow>();
+    if (error) throw new Error(error.message);
+    return mapRandom(row);
+  }
+
+  async listRandoms(roomId: string): Promise<RandomRecord[]> {
+    const { data, error } = await this.client
+      .from("randoms")
+      .select()
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as RandomRow[]).map(mapRandom);
+  }
+
+  async getRandom(id: string): Promise<RandomRecord | null> {
+    const { data, error } = await this.client
+      .from("randoms")
+      .select()
+      .eq("id", id)
+      .maybeSingle<RandomRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapRandom(data) : null;
+  }
+
+  async addRandomSubmission(data: NewRandomSubmission): Promise<RandomSubmissionRecord> {
+    const { data: row, error } = await this.client
+      .from("random_submissions")
+      .upsert(
+        {
+          random_id: data.randomId,
+          participant_id: data.participantId,
+          photo_path: data.photoPath,
+          width: data.width,
+          height: data.height,
+          caption: data.caption,
+        },
+        { onConflict: "random_id,participant_id" }
+      )
+      .select()
+      .single<RandomSubmissionRow>();
+    if (error) throw new Error(error.message);
+    return mapSubmission(row);
+  }
+
+  async listRandomSubmissions(randomId: string): Promise<RandomSubmissionRecord[]> {
+    const { data, error } = await this.client
+      .from("random_submissions")
+      .select()
+      .eq("random_id", randomId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data as RandomSubmissionRow[]).map(mapSubmission);
+  }
+
+  async markRandomCompleted(id: string): Promise<void> {
+    const { error } = await this.client
+      .from("randoms")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("status", "open");
+    if (error) throw new Error(error.message);
+  }
+
+  async markRandomExpired(id: string): Promise<void> {
+    const { error } = await this.client
+      .from("randoms")
+      .update({ status: "expired" })
+      .eq("id", id)
+      .eq("status", "open");
+    if (error) throw new Error(error.message);
+  }
+
+  // ── Files ──────────────────────────────────────────────────
+
+  async saveFile(path: string, data: Uint8Array, contentType: string): Promise<void> {
     const { error } = await this.client.storage
       .from(BUCKET)
       .upload(path, data, { contentType, upsert: true });

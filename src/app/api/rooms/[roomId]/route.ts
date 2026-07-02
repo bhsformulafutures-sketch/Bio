@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStore } from "@/lib/store";
-import { getAllTokens, SESSION_COOKIE, writeSessionCookies } from "@/lib/session";
 import { cookies } from "next/headers";
+import { getStore } from "@/lib/store";
+import { getUser, ROOM_COOKIE, setActiveRoom } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -13,33 +13,32 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ roomId: string }> }
 ) {
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "No session" }, { status: 401 });
+
   const { roomId } = await params;
-  const tokens = await getAllTokens();
   const store = getStore();
 
   try {
-    let memberToken: string | null = null;
-    const otherTokens: string[] = [];
-    for (const token of tokens) {
-      const session = await store.getSessionByToken(token);
-      if (!session) continue;
-      if (session.room.id === roomId) memberToken = token;
-      else otherTokens.push(token);
-    }
-    if (!memberToken) {
+    const membership = await store.getMembership(user.id, roomId);
+    if (!membership) {
       return NextResponse.json({ error: "You're not in that room." }, { status: 404 });
     }
 
     await store.deleteRoom(roomId);
 
-    // If the deleted room was active, hop to the next room (or sign out).
+    // Move to another room if the deleted one was active.
+    const remaining = await store.listMemberships(user.id);
     const jar = await cookies();
-    const activeToken = jar.get(SESSION_COOKIE)?.value;
+    const activeRoomId = jar.get(ROOM_COOKIE)?.value;
     const nextActive =
-      activeToken && activeToken !== memberToken ? activeToken : otherTokens[0] ?? null;
+      activeRoomId && activeRoomId !== roomId
+        ? activeRoomId
+        : remaining[0]?.roomId ?? null;
 
-    const response = NextResponse.json({ ok: true, hasRooms: otherTokens.length > 0 });
-    writeSessionCookies(response, otherTokens, nextActive);
+    const response = NextResponse.json({ ok: true, hasRooms: remaining.length > 0 });
+    if (nextActive) setActiveRoom(response, nextActive);
+    else response.cookies.set(ROOM_COOKIE, "", { path: "/", maxAge: 0 });
     return response;
   } catch (error) {
     console.error("deleteRoom failed:", error);

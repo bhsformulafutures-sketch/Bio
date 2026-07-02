@@ -6,21 +6,40 @@ import type {
   ChallengeRecord,
   JoinResult,
   NewChallenge,
+  NewRandom,
+  NewRandomSubmission,
   ParticipantRecord,
+  RandomRecord,
+  RandomSubmissionRecord,
   RoomRecord,
-  SessionRecord,
   Store,
+  UserRecord,
+  VerificationRecord,
 } from "./types";
 
 interface Db {
+  users: UserRecord[];
+  verifications: VerificationRecord[];
   rooms: RoomRecord[];
   participants: ParticipantRecord[];
   challenges: ChallengeRecord[];
+  randoms: RandomRecord[];
+  randomSubmissions: RandomSubmissionRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const DB_FILE = path.join(DATA_DIR, "db.json");
 const FILES_DIR = path.join(DATA_DIR, "files");
+
+const EMPTY_DB: Db = {
+  users: [],
+  verifications: [],
+  rooms: [],
+  participants: [],
+  challenges: [],
+  randoms: [],
+  randomSubmissions: [],
+};
 
 /**
  * Zero-configuration store for local development and demos.
@@ -39,9 +58,10 @@ export class LocalStore implements Store {
 
   private async readDb(): Promise<Db> {
     try {
-      return JSON.parse(await fs.readFile(DB_FILE, "utf8")) as Db;
+      const parsed = JSON.parse(await fs.readFile(DB_FILE, "utf8")) as Partial<Db>;
+      return { ...EMPTY_DB, ...parsed };
     } catch {
-      return { rooms: [], participants: [], challenges: [] };
+      return { ...EMPTY_DB };
     }
   }
 
@@ -50,7 +70,102 @@ export class LocalStore implements Store {
     await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
   }
 
-  createRoom(name: string) {
+  // ── Identity & phone verification ──────────────────────────
+
+  upsertVerification(phone: string, codeHash: string, expiresAt: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const now = new Date().toISOString();
+      const existing = db.verifications.find((v) => v.phone === phone);
+      if (existing) {
+        existing.codeHash = codeHash;
+        existing.expiresAt = expiresAt;
+        existing.attempts = 0;
+        existing.createdAt = now;
+      } else {
+        db.verifications.push({ phone, codeHash, expiresAt, attempts: 0, createdAt: now });
+      }
+      await this.writeDb(db);
+    });
+  }
+
+  async getVerification(phone: string): Promise<VerificationRecord | null> {
+    const db = await this.readDb();
+    return db.verifications.find((v) => v.phone === phone) ?? null;
+  }
+
+  incrementVerificationAttempts(phone: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const v = db.verifications.find((x) => x.phone === phone);
+      if (v) {
+        v.attempts += 1;
+        await this.writeDb(db);
+      }
+    });
+  }
+
+  deleteVerification(phone: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.verifications = db.verifications.filter((v) => v.phone !== phone);
+      await this.writeDb(db);
+    });
+  }
+
+  async getUserByPhone(phone: string): Promise<UserRecord | null> {
+    const db = await this.readDb();
+    return db.users.find((u) => u.phone === phone) ?? null;
+  }
+
+  async getUserByToken(token: string): Promise<UserRecord | null> {
+    const db = await this.readDb();
+    return db.users.find((u) => u.token === token) ?? null;
+  }
+
+  async getUserById(id: string): Promise<UserRecord | null> {
+    const db = await this.readDb();
+    return db.users.find((u) => u.id === id) ?? null;
+  }
+
+  createUser(phone: string, name: string, avatar: string | null) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const existing = db.users.find((u) => u.phone === phone);
+      if (existing) return existing;
+      const user: UserRecord = {
+        id: randomUUID(),
+        phone,
+        name,
+        avatar,
+        token: newToken(),
+        createdAt: new Date().toISOString(),
+      };
+      db.users.push(user);
+      await this.writeDb(db);
+      return user;
+    });
+  }
+
+  updateUser(id: string, patch: { name?: string; avatar?: string | null }) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const user = db.users.find((u) => u.id === id);
+      if (!user) throw new Error("User not found");
+      if (patch.name !== undefined) user.name = patch.name;
+      if (patch.avatar !== undefined) user.avatar = patch.avatar;
+      // Keep the person's name in sync across their room memberships.
+      for (const p of db.participants) {
+        if (p.userId === id && patch.name !== undefined) p.name = patch.name;
+      }
+      await this.writeDb(db);
+      return user;
+    });
+  }
+
+  // ── Rooms & membership ─────────────────────────────────────
+
+  createRoom(userId: string, name: string) {
     return this.locked(async () => {
       const db = await this.readDb();
       let code = newRoomCode();
@@ -63,6 +178,7 @@ export class LocalStore implements Store {
       const participant: ParticipantRecord = {
         id: randomUUID(),
         roomId: room.id,
+        userId,
         name,
         token: newToken(),
         joinedAt: new Date().toISOString(),
@@ -74,16 +190,20 @@ export class LocalStore implements Store {
     });
   }
 
-  joinRoom(code: string, name: string): Promise<JoinResult> {
+  joinRoom(code: string, userId: string, name: string): Promise<JoinResult> {
     return this.locked(async () => {
       const db = await this.readDb();
       const room = db.rooms.find((r) => r.code === code);
       if (!room) return { ok: false as const, reason: "not_found" as const };
       const members = db.participants.filter((p) => p.roomId === room.id);
+      if (members.some((p) => p.userId === userId)) {
+        return { ok: false as const, reason: "already_in" as const };
+      }
       if (members.length >= 2) return { ok: false as const, reason: "full" as const };
       const participant: ParticipantRecord = {
         id: randomUUID(),
         roomId: room.id,
+        userId,
         name,
         token: newToken(),
         joinedAt: new Date().toISOString(),
@@ -94,17 +214,28 @@ export class LocalStore implements Store {
     });
   }
 
-  async getSessionByToken(token: string): Promise<SessionRecord | null> {
+  async getRoom(roomId: string): Promise<RoomRecord | null> {
     const db = await this.readDb();
-    const participant = db.participants.find((p) => p.token === token);
-    if (!participant) return null;
-    const room = db.rooms.find((r) => r.id === participant.roomId);
-    if (!room) return null;
-    const partner =
-      db.participants.find(
-        (p) => p.roomId === room.id && p.id !== participant.id
-      ) ?? null;
-    return { participant, room, partner };
+    return db.rooms.find((r) => r.id === roomId) ?? null;
+  }
+
+  async getMembership(userId: string, roomId: string): Promise<ParticipantRecord | null> {
+    const db = await this.readDb();
+    return (
+      db.participants.find((p) => p.userId === userId && p.roomId === roomId) ?? null
+    );
+  }
+
+  async listMemberships(userId: string): Promise<ParticipantRecord[]> {
+    const db = await this.readDb();
+    return db.participants
+      .filter((p) => p.userId === userId)
+      .sort((a, b) => b.joinedAt.localeCompare(a.joinedAt));
+  }
+
+  async getRoomParticipants(roomId: string): Promise<ParticipantRecord[]> {
+    const db = await this.readDb();
+    return db.participants.filter((p) => p.roomId === roomId);
   }
 
   deleteRoom(roomId: string): Promise<void> {
@@ -113,6 +244,11 @@ export class LocalStore implements Store {
       db.rooms = db.rooms.filter((r) => r.id !== roomId);
       db.participants = db.participants.filter((p) => p.roomId !== roomId);
       db.challenges = db.challenges.filter((c) => c.roomId !== roomId);
+      const removedRandoms = db.randoms.filter((r) => r.roomId === roomId).map((r) => r.id);
+      db.randoms = db.randoms.filter((r) => r.roomId !== roomId);
+      db.randomSubmissions = db.randomSubmissions.filter(
+        (s) => !removedRandoms.includes(s.randomId)
+      );
       await this.writeDb(db);
       await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
         recursive: true,
@@ -120,6 +256,8 @@ export class LocalStore implements Store {
       });
     });
   }
+
+  // ── Game 1 · Other Half ────────────────────────────────────
 
   createChallenge(data: NewChallenge) {
     return this.locked(async () => {
@@ -176,6 +314,92 @@ export class LocalStore implements Store {
       }
     });
   }
+
+  // ── Game 2 · Random Challenge ──────────────────────────────
+
+  createRandom(data: NewRandom) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const random: RandomRecord = {
+        ...data,
+        status: "open",
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+      };
+      db.randoms.push(random);
+      await this.writeDb(db);
+      return random;
+    });
+  }
+
+  async listRandoms(roomId: string): Promise<RandomRecord[]> {
+    const db = await this.readDb();
+    return db.randoms
+      .filter((r) => r.roomId === roomId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getRandom(id: string): Promise<RandomRecord | null> {
+    const db = await this.readDb();
+    return db.randoms.find((r) => r.id === id) ?? null;
+  }
+
+  addRandomSubmission(data: NewRandomSubmission) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const existing = db.randomSubmissions.find(
+        (s) => s.randomId === data.randomId && s.participantId === data.participantId
+      );
+      if (existing) {
+        existing.photoPath = data.photoPath;
+        existing.width = data.width;
+        existing.height = data.height;
+        existing.caption = data.caption;
+        await this.writeDb(db);
+        return existing;
+      }
+      const submission: RandomSubmissionRecord = {
+        id: randomUUID(),
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
+      db.randomSubmissions.push(submission);
+      await this.writeDb(db);
+      return submission;
+    });
+  }
+
+  async listRandomSubmissions(randomId: string): Promise<RandomSubmissionRecord[]> {
+    const db = await this.readDb();
+    return db.randomSubmissions
+      .filter((s) => s.randomId === randomId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  markRandomCompleted(id: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const random = db.randoms.find((r) => r.id === id);
+      if (random && random.status === "open") {
+        random.status = "completed";
+        random.completedAt = new Date().toISOString();
+        await this.writeDb(db);
+      }
+    });
+  }
+
+  markRandomExpired(id: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const random = db.randoms.find((r) => r.id === id);
+      if (random && random.status === "open") {
+        random.status = "expired";
+        await this.writeDb(db);
+      }
+    });
+  }
+
+  // ── Files ──────────────────────────────────────────────────
 
   async saveFile(filePath: string, data: Uint8Array): Promise<void> {
     const full = path.join(FILES_DIR, filePath);

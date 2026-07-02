@@ -1,56 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/store";
-import { attachSession, getAllTokens } from "@/lib/session";
+import { getUser, setActiveRoom } from "@/lib/session";
 import { sessionToDTO } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/room/join — join an existing room by code. */
+/** POST /api/room/join { code } — join an existing room by its code. */
 export async function POST(request: NextRequest) {
-  let name = "";
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  if (!user.name.trim()) {
+    return NextResponse.json({ error: "Finish your profile first." }, { status: 400 });
+  }
+
   let code = "";
   try {
     const body = await request.json();
-    name = String(body?.name ?? "").trim().slice(0, 30);
     code = String(body?.code ?? "").trim().toUpperCase().replace(/\s/g, "");
   } catch {
     /* fall through to validation */
   }
-  if (!name || !code) {
-    return NextResponse.json(
-      { error: "A name and a room code are both needed." },
-      { status: 400 }
-    );
+  if (!code) {
+    return NextResponse.json({ error: "Enter a room code." }, { status: 400 });
   }
 
   try {
     const store = getStore();
 
-    // Already a member of this room from this browser? Just switch to it —
-    // don't become your own partner.
-    for (const token of await getAllTokens()) {
-      const existing = await store.getSessionByToken(token);
-      if (existing?.room.code === code) {
-        const response = NextResponse.json(sessionToDTO(existing), { status: 200 });
-        await attachSession(response, token);
+    // Already in this room? Just switch to it.
+    const memberships = await store.listMemberships(user.id);
+    for (const m of memberships) {
+      const room = await store.getRoom(m.roomId);
+      if (room?.code === code) {
+        const participants = await store.getRoomParticipants(room.id);
+        const partner = participants.find((p) => p.id !== m.id) ?? null;
+        const dto = await sessionToDTO({ user, room, participant: m, partner });
+        const response = NextResponse.json(dto, { status: 200 });
+        setActiveRoom(response, room.id);
         return response;
       }
     }
 
-    const result = await store.joinRoom(code, name);
+    const result = await store.joinRoom(code, user.id, user.name);
     if (!result.ok) {
       const message =
         result.reason === "not_found"
           ? "That room code doesn't exist. Double-check it?"
-          : "This room already has its two people.";
-      return NextResponse.json({ error: message }, { status: result.reason === "not_found" ? 404 : 409 });
+          : result.reason === "already_in"
+            ? "You're already in that room."
+            : "This room already has its two people.";
+      const status =
+        result.reason === "not_found" ? 404 : result.reason === "already_in" ? 409 : 409;
+      return NextResponse.json({ error: message }, { status });
     }
-    const session = await store.getSessionByToken(result.participant.token);
-    const response = NextResponse.json(
-      sessionToDTO(session ?? { room: result.room, participant: result.participant, partner: null }),
-      { status: 200 }
-    );
-    await attachSession(response, result.participant.token);
+
+    const participants = await store.getRoomParticipants(result.room.id);
+    const partner = participants.find((p) => p.id !== result.participant.id) ?? null;
+    const dto = await sessionToDTO({
+      user,
+      room: result.room,
+      participant: result.participant,
+      partner,
+    });
+    const response = NextResponse.json(dto, { status: 200 });
+    setActiveRoom(response, result.room.id);
     return response;
   } catch (error) {
     console.error("joinRoom failed:", error);

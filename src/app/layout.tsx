@@ -3,13 +3,13 @@ import "./globals.css";
 import { Toaster } from "@/components/Toast";
 
 export const metadata: Metadata = {
-  title: "Other Half",
+  title: "Two of Us",
   description:
-    "A private game for two: one of you shares half a photo, the other draws what they imagine is missing. Then the truth is revealed.",
+    "A tiny, private world for two — playful photo games and shared moments, just the two of you.",
 };
 
 export const viewport: Viewport = {
-  themeColor: "#faf6f0",
+  themeColor: "#fdf6f3",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

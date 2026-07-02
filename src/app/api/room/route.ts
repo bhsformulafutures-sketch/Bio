@@ -1,30 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getStore } from "@/lib/store";
-import { attachSession } from "@/lib/session";
+import { getUser, setActiveRoom } from "@/lib/session";
 import { sessionToDTO } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
 
-/** POST /api/room — create a room and become its first participant. */
-export async function POST(request: NextRequest) {
-  let name = "";
-  try {
-    const body = await request.json();
-    name = String(body?.name ?? "").trim().slice(0, 30);
-  } catch {
-    /* fall through to validation */
-  }
-  if (!name) {
-    return NextResponse.json({ error: "Please tell us your name." }, { status: 400 });
+/** POST /api/room — create a room and become its first member. */
+export async function POST() {
+  const user = await getUser();
+  if (!user) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
+  if (!user.name.trim()) {
+    return NextResponse.json({ error: "Finish your profile first." }, { status: 400 });
   }
 
   try {
-    const { room, participant } = await getStore().createRoom(name);
-    const response = NextResponse.json(
-      sessionToDTO({ room, participant, partner: null }),
-      { status: 201 }
-    );
-    await attachSession(response, participant.token);
+    const store = getStore();
+    const { room, participant } = await store.createRoom(user.id, user.name);
+    const dto = await sessionToDTO({ user, room, participant, partner: null });
+    const response = NextResponse.json(dto, { status: 201 });
+    setActiveRoom(response, room.id);
     return response;
   } catch (error) {
     console.error("createRoom failed:", error);

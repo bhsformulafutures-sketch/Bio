@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getStore } from "./store";
 import type { SessionRecord, UserRecord } from "./store/types";
 
-/** The signed-in person (a global account keyed by phone). */
+/** The signed-in person (a global account keyed by email). */
 export const AUTH_COOKIE = "oh_uid";
 /** Which room the browser is currently looking at. */
 export const ROOM_COOKIE = "oh_room";

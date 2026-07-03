@@ -13,14 +13,14 @@ import type {
   SessionRecord,
   UserRecord,
 } from "./store/types";
-import { phoneHint } from "./auth/phone";
+import { emailHint } from "./auth/email";
 
 export function userToDTO(user: UserRecord): UserDTO {
   return {
     id: user.id,
     name: user.name,
     avatar: user.avatar,
-    phoneHint: phoneHint(user.phone),
+    emailHint: emailHint(user.email),
   };
 }
 

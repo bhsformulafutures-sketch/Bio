@@ -6,8 +6,9 @@ import { api, ApiError } from "@/lib/api";
 import { Avatar, Button, Card, Spinner, TextInput } from "@/components/ui";
 import { Logo } from "@/components/Header";
 import { toast } from "@/components/Toast";
+import { isValidEmail, normalizeEmail } from "@/lib/auth/email";
 
-type Step = "welcome" | "phone" | "code" | "profile" | "room";
+type Step = "welcome" | "email" | "code" | "profile" | "room";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -41,15 +42,15 @@ export default function OnboardingPage() {
       <Hero />
       {/* key remounts on step change so each panel plays its entrance */}
       <div key={step} className="animate-rise">
-        {step === "welcome" && <Welcome onNext={() => setStep("phone")} />}
-        {step === "phone" && <PhoneStep onNext={() => setStep("code")} phoneRef={phoneStore} />}
+        {step === "welcome" && <Welcome onNext={() => setStep("email")} />}
+        {step === "email" && <EmailStep onNext={() => setStep("code")} emailRef={emailStore} />}
         {step === "code" && (
           <CodeStep
-            phoneRef={phoneStore}
+            emailRef={emailStore}
             onProfile={() => setStep("profile")}
             onRoom={() => setStep("room")}
             onHome={() => router.replace("/home")}
-            onBack={() => setStep("phone")}
+            onBack={() => setStep("email")}
           />
         )}
         {step === "profile" && <ProfileStep onNext={() => setStep("room")} />}
@@ -61,9 +62,9 @@ export default function OnboardingPage() {
   );
 }
 
-/* A tiny shared holder so the phone survives between the two auth steps
+/* A tiny shared holder so the email survives between the two auth steps
    without threading state through props or re-fetching. */
-const phoneStore = { current: "" };
+const emailStore = { current: "" };
 
 function Hero() {
   return (
@@ -92,31 +93,31 @@ function Welcome({ onNext }: { onNext: () => void }) {
         Get started
       </Button>
       <p className="text-center text-xs text-faint">
-        We&apos;ll text you a code — your number is just for notifications.
+        We&apos;ll email you a code — your address is just for notifications.
       </p>
     </div>
   );
 }
 
-function PhoneStep({
+function EmailStep({
   onNext,
-  phoneRef,
+  emailRef,
 }: {
   onNext: () => void;
-  phoneRef: { current: string };
+  emailRef: { current: string };
 }) {
-  const [phone, setPhone] = useState(phoneRef.current);
+  const [email, setEmail] = useState(emailRef.current);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (phone.replace(/\D/g, "").length < 7) {
-      toast("Enter your phone number, including area code.", "error");
+    if (!isValidEmail(normalizeEmail(email))) {
+      toast("Enter a valid email address.", "error");
       return;
     }
     setBusy(true);
     try {
-      const { devCode } = await api.requestCode(phone);
-      phoneRef.current = phone;
+      const { devCode } = await api.requestCode(email);
+      emailRef.current = email;
       if (devCode) toast(`Dev mode — your code is ${devCode}`);
       onNext();
     } catch (error) {
@@ -127,15 +128,16 @@ function PhoneStep({
 
   return (
     <Card className="flex flex-col gap-3 p-5">
-      <p className="text-center font-semibold">What&apos;s your number?</p>
+      <p className="text-center font-semibold">What&apos;s your email?</p>
       <TextInput
-        type="tel"
-        inputMode="tel"
-        placeholder="+1 (555) 123-4567"
-        value={phone}
+        type="email"
+        inputMode="email"
+        placeholder="you@example.com"
+        autoComplete="email"
+        value={email}
         autoFocus
-        maxLength={20}
-        onChange={(e) => setPhone(e.target.value)}
+        maxLength={254}
+        onChange={(e) => setEmail(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()}
         className="text-center text-lg tracking-wide"
       />
@@ -147,13 +149,13 @@ function PhoneStep({
 }
 
 function CodeStep({
-  phoneRef,
+  emailRef,
   onProfile,
   onRoom,
   onHome,
   onBack,
 }: {
-  phoneRef: { current: string };
+  emailRef: { current: string };
   onProfile: () => void;
   onRoom: () => void;
   onHome: () => void;
@@ -165,7 +167,7 @@ function CodeStep({
   const submit = async (value: string) => {
     setBusy(true);
     try {
-      const state = await api.verifyCode(phoneRef.current, value);
+      const state = await api.verifyCode(emailRef.current, value);
       if (state.hasRoom) onHome();
       else if (state.needsProfile) onProfile();
       else onRoom();
@@ -178,7 +180,7 @@ function CodeStep({
 
   const resend = async () => {
     try {
-      const { devCode } = await api.requestCode(phoneRef.current);
+      const { devCode } = await api.requestCode(emailRef.current);
       toast(devCode ? `Dev mode — your code is ${devCode}` : "New code sent.");
     } catch (error) {
       toast(error instanceof ApiError ? error.message : "Couldn't resend.", "error");
@@ -189,7 +191,7 @@ function CodeStep({
     <Card className="flex flex-col gap-3 p-5">
       <p className="text-center font-semibold">Enter your code</p>
       <p className="-mt-1 text-center text-xs text-faint">
-        Sent to {phoneRef.current || "your phone"}
+        Sent to {emailRef.current || "your email"}
       </p>
       <TextInput
         inputMode="numeric"
@@ -209,7 +211,7 @@ function CodeStep({
       </Button>
       <div className="flex items-center justify-between px-1 text-sm">
         <button className="font-medium text-faint hover:text-soft" onClick={onBack}>
-          ← Change number
+          ← Change email
         </button>
         <button className="font-medium text-accent hover:text-accent-deep" onClick={resend}>
           Resend
@@ -360,7 +362,7 @@ function RoomStep({ onHome }: { onHome: () => void }) {
 }
 
 function Dots({ step }: { step: Step }) {
-  const order: Step[] = ["welcome", "phone", "code", "profile", "room"];
+  const order: Step[] = ["welcome", "email", "code", "profile", "room"];
   const active = order.indexOf(step);
   return (
     <div className="flex items-center justify-center gap-1.5" aria-hidden>

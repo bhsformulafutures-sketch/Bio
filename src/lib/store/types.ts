@@ -2,7 +2,7 @@ import type { ChallengeStatus, HiddenSide, RandomStatus } from "../types";
 
 export interface UserRecord {
   id: string;
-  phone: string;
+  email: string;
   name: string;
   avatar: string | null;
   token: string;
@@ -10,7 +10,7 @@ export interface UserRecord {
 }
 
 export interface VerificationRecord {
-  phone: string;
+  email: string;
   codeHash: string;
   expiresAt: string;
   attempts: number;
@@ -123,15 +123,15 @@ export type JoinResult =
  *  - LocalStore   (zero-config dev: JSON file + local blobs)
  */
 export interface Store {
-  // ── Identity & phone verification ──────────────────────────
-  upsertVerification(phone: string, codeHash: string, expiresAt: string): Promise<void>;
-  getVerification(phone: string): Promise<VerificationRecord | null>;
-  incrementVerificationAttempts(phone: string): Promise<void>;
-  deleteVerification(phone: string): Promise<void>;
-  getUserByPhone(phone: string): Promise<UserRecord | null>;
+  // ── Identity & email verification ──────────────────────────
+  upsertVerification(email: string, codeHash: string, expiresAt: string): Promise<void>;
+  getVerification(email: string): Promise<VerificationRecord | null>;
+  incrementVerificationAttempts(email: string): Promise<void>;
+  deleteVerification(email: string): Promise<void>;
+  getUserByEmail(email: string): Promise<UserRecord | null>;
   getUserByToken(token: string): Promise<UserRecord | null>;
   getUserById(id: string): Promise<UserRecord | null>;
-  createUser(phone: string, name: string, avatar: string | null): Promise<UserRecord>;
+  createUser(email: string, name: string, avatar: string | null): Promise<UserRecord>;
   updateUser(id: string, patch: { name?: string; avatar?: string | null }): Promise<UserRecord>;
 
   // ── Rooms & membership ─────────────────────────────────────

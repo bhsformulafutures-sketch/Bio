@@ -70,34 +70,34 @@ export class LocalStore implements Store {
     await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
   }
 
-  // ── Identity & phone verification ──────────────────────────
+  // ── Identity & email verification ──────────────────────────
 
-  upsertVerification(phone: string, codeHash: string, expiresAt: string) {
+  upsertVerification(email: string, codeHash: string, expiresAt: string) {
     return this.locked(async () => {
       const db = await this.readDb();
       const now = new Date().toISOString();
-      const existing = db.verifications.find((v) => v.phone === phone);
+      const existing = db.verifications.find((v) => v.email === email);
       if (existing) {
         existing.codeHash = codeHash;
         existing.expiresAt = expiresAt;
         existing.attempts = 0;
         existing.createdAt = now;
       } else {
-        db.verifications.push({ phone, codeHash, expiresAt, attempts: 0, createdAt: now });
+        db.verifications.push({ email, codeHash, expiresAt, attempts: 0, createdAt: now });
       }
       await this.writeDb(db);
     });
   }
 
-  async getVerification(phone: string): Promise<VerificationRecord | null> {
+  async getVerification(email: string): Promise<VerificationRecord | null> {
     const db = await this.readDb();
-    return db.verifications.find((v) => v.phone === phone) ?? null;
+    return db.verifications.find((v) => v.email === email) ?? null;
   }
 
-  incrementVerificationAttempts(phone: string) {
+  incrementVerificationAttempts(email: string) {
     return this.locked(async () => {
       const db = await this.readDb();
-      const v = db.verifications.find((x) => x.phone === phone);
+      const v = db.verifications.find((x) => x.email === email);
       if (v) {
         v.attempts += 1;
         await this.writeDb(db);
@@ -105,17 +105,17 @@ export class LocalStore implements Store {
     });
   }
 
-  deleteVerification(phone: string) {
+  deleteVerification(email: string) {
     return this.locked(async () => {
       const db = await this.readDb();
-      db.verifications = db.verifications.filter((v) => v.phone !== phone);
+      db.verifications = db.verifications.filter((v) => v.email !== email);
       await this.writeDb(db);
     });
   }
 
-  async getUserByPhone(phone: string): Promise<UserRecord | null> {
+  async getUserByEmail(email: string): Promise<UserRecord | null> {
     const db = await this.readDb();
-    return db.users.find((u) => u.phone === phone) ?? null;
+    return db.users.find((u) => u.email === email) ?? null;
   }
 
   async getUserByToken(token: string): Promise<UserRecord | null> {
@@ -128,14 +128,14 @@ export class LocalStore implements Store {
     return db.users.find((u) => u.id === id) ?? null;
   }
 
-  createUser(phone: string, name: string, avatar: string | null) {
+  createUser(email: string, name: string, avatar: string | null) {
     return this.locked(async () => {
       const db = await this.readDb();
-      const existing = db.users.find((u) => u.phone === phone);
+      const existing = db.users.find((u) => u.email === email);
       if (existing) return existing;
       const user: UserRecord = {
         id: randomUUID(),
-        phone,
+        email,
         name,
         avatar,
         token: newToken(),

@@ -1,14 +1,12 @@
 import { getStore } from "../store";
-import { getSmsProvider } from "./index";
+import { getEmailProvider } from "./index";
 import type { ParticipantRecord } from "../store/types";
 
-const APP_NAME = "The Other Half";
-
-/** Resolve a participant's phone (via their user account), if any. */
-async function phoneOf(participant: ParticipantRecord | null): Promise<string | null> {
+/** Resolve a participant's email (via their user account), if any. */
+async function emailOf(participant: ParticipantRecord | null): Promise<string | null> {
   if (!participant?.userId) return null;
   const user = await getStore().getUserById(participant.userId);
-  return user?.phone ?? null;
+  return user?.email ?? null;
 }
 
 /** The two members of a room, or fewer if the second hasn't joined. */
@@ -16,12 +14,12 @@ async function membersOf(roomId: string): Promise<ParticipantRecord[]> {
   return getStore().getRoomParticipants(roomId);
 }
 
-/** Send one SMS, swallowing failures — a notification must never break the
+/** Send one email, swallowing failures — a notification must never break the
  *  user action that triggered it. */
-async function sendSafely(phone: string | null, body: string): Promise<void> {
-  if (!phone) return;
+async function sendSafely(email: string | null, subject: string, body: string): Promise<void> {
+  if (!email) return;
   try {
-    await getSmsProvider().send(phone, body);
+    await getEmailProvider().send(email, subject, body);
   } catch (error) {
     console.error("notification send failed:", error);
   }
@@ -36,8 +34,9 @@ export async function notifyChallengeSent(
   const members = await membersOf(roomId);
   const partner = members.find((p) => p.id !== fromParticipantId) ?? null;
   await sendSafely(
-    await phoneOf(partner),
-    `${APP_NAME}: ${fromName} sent you a new Other Half — imagine the missing piece 🎨`
+    await emailOf(partner),
+    "New Other Half waiting 🎨",
+    `${fromName} sent you a new Other Half — imagine the missing piece.`
   );
 }
 
@@ -50,8 +49,9 @@ export async function notifyChallengeCompleted(
   const members = await membersOf(roomId);
   const creator = members.find((p) => p.id === creatorParticipantId) ?? null;
   await sendSafely(
-    await phoneOf(creator),
-    `${APP_NAME}: ${solverName} answered your challenge — go see the reveal ✨`
+    await emailOf(creator),
+    "Your reveal is ready ✨",
+    `${solverName} answered your challenge — go see the reveal.`
   );
 }
 
@@ -65,8 +65,9 @@ export async function notifyRandomStarted(
   const members = await membersOf(roomId);
   const partner = members.find((p) => p.id !== fromParticipantId) ?? null;
   await sendSafely(
-    await phoneOf(partner),
-    `${APP_NAME}: ${fromName} started a Random Challenge — "${prompt}". You have 24 hours 📸`
+    await emailOf(partner),
+    "A Random Challenge just started 📸",
+    `${fromName} started a Random Challenge — "${prompt}". You have 24 hours.`
   );
 }
 
@@ -75,7 +76,11 @@ export async function notifyRandomCompleted(roomId: string): Promise<void> {
   const members = await membersOf(roomId);
   await Promise.all(
     members.map(async (p) =>
-      sendSafely(await phoneOf(p), `${APP_NAME}: you both answered — your Random Challenge is ready 💞`)
+      sendSafely(
+        await emailOf(p),
+        "Your Random Challenge is ready 💞",
+        "You both answered — your Random Challenge is ready to reveal."
+      )
     )
   );
 }
@@ -90,8 +95,9 @@ export async function notifyDailyAvailable(roomId: string, prompt: string): Prom
   await Promise.all(
     members.map(async (p) =>
       sendSafely(
-        await phoneOf(p),
-        `${APP_NAME}: today's Random Challenge is here — "${prompt}" 🌅`
+        await emailOf(p),
+        "Today's Random Challenge 🌅",
+        `Today's Random Challenge is here — "${prompt}".`
       )
     )
   );

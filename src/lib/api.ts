@@ -53,11 +53,11 @@ export const api = {
   // ── Auth & profile ─────────────────────────────────────────
   authState: () => request<AuthStateDTO>("/api/auth/state"),
 
-  requestCode: (phone: string) =>
-    request<{ ok: true; devCode?: string }>("/api/auth/request-code", json({ phone })),
+  requestCode: (email: string) =>
+    request<{ ok: true; devCode?: string }>("/api/auth/request-code", json({ email })),
 
-  verifyCode: (phone: string, code: string) =>
-    request<AuthStateDTO>("/api/auth/verify", json({ phone, code })),
+  verifyCode: (email: string, code: string) =>
+    request<AuthStateDTO>("/api/auth/verify", json({ email, code })),
 
   getAvatars: () => request<{ avatars: string[] }>("/api/profile"),
 

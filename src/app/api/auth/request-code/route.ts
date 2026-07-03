@@ -1,27 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/store";
-import { isValidPhone, normalizePhone } from "@/lib/auth/phone";
+import { isValidEmail, normalizeEmail } from "@/lib/auth/email";
 import { CODE_TTL_MS, RESEND_COOLDOWN_MS, generateCode, hashCode } from "@/lib/auth/otp";
-import { getSmsProvider, smsIsLive } from "@/lib/notify";
+import { getEmailProvider, emailIsLive } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/auth/request-code { phone }
- * Send a one-time verification code by SMS. In zero-config dev (no SMS
+ * POST /api/auth/request-code { email }
+ * Send a one-time verification code by email. In zero-config dev (no email
  * provider) the code is returned in the response so the flow is testable.
  */
 export async function POST(request: NextRequest) {
-  let phone = "";
+  let email = "";
   try {
     const body = await request.json();
-    phone = normalizePhone(String(body?.phone ?? ""));
+    email = normalizeEmail(String(body?.email ?? ""));
   } catch {
     /* fall through to validation */
   }
-  if (!isValidPhone(phone)) {
+  if (!isValidEmail(email)) {
     return NextResponse.json(
-      { error: "That doesn't look like a phone number. Include your country code." },
+      { error: "That doesn't look like an email address." },
       { status: 400 }
     );
   }
@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
   try {
     const store = getStore();
 
-    // Gentle rate limit: one code per number per cooldown window.
-    const existing = await store.getVerification(phone);
+    // Gentle rate limit: one code per address per cooldown window.
+    const existing = await store.getVerification(email);
     if (existing) {
       const age = Date.now() - new Date(existing.createdAt).getTime();
       if (age < RESEND_COOLDOWN_MS) {
@@ -43,17 +43,18 @@ export async function POST(request: NextRequest) {
 
     const code = generateCode();
     const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
-    await store.upsertVerification(phone, hashCode(phone, code), expiresAt);
+    await store.upsertVerification(email, hashCode(email, code), expiresAt);
 
-    await getSmsProvider().send(
-      phone,
-      `The Other Half: your code is ${code}. It expires in 10 minutes.`
+    await getEmailProvider().send(
+      email,
+      "Your verification code",
+      `Your The Other Half code is ${code}. It expires in 10 minutes.`
     );
 
     return NextResponse.json({
       ok: true,
-      // Only ever exposed when real SMS isn't configured (local/dev).
-      devCode: smsIsLive() ? undefined : code,
+      // Only ever exposed when real email isn't configured (local/dev).
+      devCode: emailIsLive() ? undefined : code,
     });
   } catch (error) {
     console.error("request-code failed:", error);

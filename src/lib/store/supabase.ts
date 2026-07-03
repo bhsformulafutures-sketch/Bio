@@ -21,14 +21,14 @@ const BUCKET = "photos";
 
 interface UserRow {
   id: string;
-  phone: string;
+  email: string;
   name: string;
   avatar: string | null;
   token: string;
   created_at: string;
 }
 interface VerificationRow {
-  phone: string;
+  email: string;
   code_hash: string;
   expires_at: string;
   attempts: number;
@@ -88,7 +88,7 @@ interface RandomSubmissionRow {
 
 const mapUser = (u: UserRow): UserRecord => ({
   id: u.id,
-  phone: u.phone,
+  email: u.email,
   name: u.name,
   avatar: u.avatar,
   token: u.token,
@@ -96,7 +96,7 @@ const mapUser = (u: UserRow): UserRecord => ({
 });
 
 const mapVerification = (v: VerificationRow): VerificationRecord => ({
-  phone: v.phone,
+  email: v.email,
   codeHash: v.code_hash,
   expiresAt: v.expires_at,
   attempts: v.attempts,
@@ -170,51 +170,51 @@ export class SupabaseStore implements Store {
     this.baseUrl = url.replace(/\/$/, "");
   }
 
-  // ── Identity & phone verification ──────────────────────────
+  // ── Identity & email verification ──────────────────────────
 
-  async upsertVerification(phone: string, codeHash: string, expiresAt: string): Promise<void> {
+  async upsertVerification(email: string, codeHash: string, expiresAt: string): Promise<void> {
     const { error } = await this.client
-      .from("phone_verifications")
+      .from("email_verifications")
       .upsert(
-        { phone, code_hash: codeHash, expires_at: expiresAt, attempts: 0, created_at: new Date().toISOString() },
-        { onConflict: "phone" }
+        { email, code_hash: codeHash, expires_at: expiresAt, attempts: 0, created_at: new Date().toISOString() },
+        { onConflict: "email" }
       );
     if (error) throw new Error(error.message);
   }
 
-  async getVerification(phone: string): Promise<VerificationRecord | null> {
+  async getVerification(email: string): Promise<VerificationRecord | null> {
     const { data, error } = await this.client
-      .from("phone_verifications")
+      .from("email_verifications")
       .select()
-      .eq("phone", phone)
+      .eq("email", email)
       .maybeSingle<VerificationRow>();
     if (error) throw new Error(error.message);
     return data ? mapVerification(data) : null;
   }
 
-  async incrementVerificationAttempts(phone: string): Promise<void> {
-    const current = await this.getVerification(phone);
+  async incrementVerificationAttempts(email: string): Promise<void> {
+    const current = await this.getVerification(email);
     if (!current) return;
     const { error } = await this.client
-      .from("phone_verifications")
+      .from("email_verifications")
       .update({ attempts: current.attempts + 1 })
-      .eq("phone", phone);
+      .eq("email", email);
     if (error) throw new Error(error.message);
   }
 
-  async deleteVerification(phone: string): Promise<void> {
+  async deleteVerification(email: string): Promise<void> {
     const { error } = await this.client
-      .from("phone_verifications")
+      .from("email_verifications")
       .delete()
-      .eq("phone", phone);
+      .eq("email", email);
     if (error) throw new Error(error.message);
   }
 
-  async getUserByPhone(phone: string): Promise<UserRecord | null> {
+  async getUserByEmail(email: string): Promise<UserRecord | null> {
     const { data, error } = await this.client
       .from("users")
       .select()
-      .eq("phone", phone)
+      .eq("email", email)
       .maybeSingle<UserRow>();
     if (error) throw new Error(error.message);
     return data ? mapUser(data) : null;
@@ -240,12 +240,12 @@ export class SupabaseStore implements Store {
     return data ? mapUser(data) : null;
   }
 
-  async createUser(phone: string, name: string, avatar: string | null): Promise<UserRecord> {
-    const existing = await this.getUserByPhone(phone);
+  async createUser(email: string, name: string, avatar: string | null): Promise<UserRecord> {
+    const existing = await this.getUserByEmail(email);
     if (existing) return existing;
     const { data, error } = await this.client
       .from("users")
-      .insert({ phone, name, avatar, token: newToken() })
+      .insert({ email, name, avatar, token: newToken() })
       .select()
       .single<UserRow>();
     if (error) throw new Error(error.message);

@@ -1,18 +1,18 @@
 # The Other Half 💞
 
 A tiny, private world for two — playful photo mini-games and shared
-moments, just the two of you. Sign up with your phone, create or join a
+moments, just the two of you. Sign up with your email, create or join a
 room with your partner, and start playing.
 
 No feeds, no likes, no strangers. Just the two of you.
 
 ## How it works
 
-1. **Sign up** with your phone number (a one-time code verifies it — the
-   number is only ever used to deliver notifications).
+1. **Sign up** with your email address (a one-time code verifies it — the
+   address is only ever used to deliver notifications).
 2. **Create your profile** — a name and a little emoji avatar.
 3. **Create a room** → you get a 6-letter code, or **join** your partner's
-   with theirs. The room permanently links the two of you; your phone
+   with theirs. The room permanently links the two of you; your account
    carries the connection, so it survives across browsers and devices.
 4. Play together:
    - **Other Half** 🎨 — one of you hides part of a photo, the other
@@ -57,35 +57,35 @@ couple of env vars.
 
 ### Identity & auth
 
-A **user** is a verified phone number + a profile (name, emoji avatar). A
+A **user** is a verified email address + a profile (name, emoji avatar). A
 **participant** is that person's membership in one specific room — so the
 same person can belong to multiple rooms, and each room still only ever
 has two participants.
 
-- `src/lib/auth/phone.ts` — phone normalization/validation.
+- `src/lib/auth/email.ts` — email normalization/validation.
 - `src/lib/auth/otp.ts` — one-time code generation & hashing (HMAC, peppered
   with `AUTH_SECRET`, 10-minute expiry, 5 attempts).
 - `src/lib/session.ts` — two httpOnly cookies: `oh_uid` (who you are) and
   `oh_room` (which room you're currently looking at).
 
-In zero-config dev (no SMS provider configured), verification codes are
-returned in the API response and surfaced on-screen instead of texted, so
+In zero-config dev (no email provider configured), verification codes are
+returned in the API response and surfaced on-screen instead of emailed, so
 the whole flow works with no external accounts.
 
 ### Notifications
 
-`src/lib/notify/` is a small provider abstraction so SMS delivery can be
+`src/lib/notify/` is a small provider abstraction so email delivery can be
 swapped without touching call sites:
 
 | Provider | When | Behavior |
 | --- | --- | --- |
-| `console` | no `TWILIO_*` vars set | Logs the message to the server console (dev) |
-| `twilio` | `TWILIO_ACCOUNT_SID` + `TWILIO_AUTH_TOKEN` + `TWILIO_FROM_NUMBER` set | Sends real SMS via Twilio's REST API |
+| `console` | no `RESEND_*` vars set | Logs the message to the server console (dev) |
+| `resend` | `RESEND_API_KEY` + `RESEND_FROM_EMAIL` set | Sends real email via Resend's REST API |
 
 `src/lib/notify/notifications.ts` holds the high-level events: a challenge
 is sent, a challenge is completed, a Random Challenge starts, a Random
 Challenge is complete. Adding a new provider means adding one file under
-`src/lib/notify/providers/` and wiring it into `getSmsProvider()`.
+`src/lib/notify/providers/` and wiring it into `getEmailProvider()`.
 
 ### Mini-games
 
@@ -110,25 +110,26 @@ npm run dev
 ```
 
 Verification codes appear in the API response (and a toast in the UI) since
-no SMS provider is configured. To try the full two-person flow locally,
+no email provider is configured. To try the full two-person flow locally,
 open a second browser (or a private window) and sign up with a different
-phone number, then join with the room code.
+email address, then join with the room code.
 
 ## Deploying (Vercel + Supabase)
 
 1. Create a Supabase project, then run [`supabase/schema.sql`](supabase/schema.sql)
-   in the SQL editor. It's safe to re-run — every statement is additive
-   (`if not exists` / `add column if not exists`). It creates the tables
-   **and** the public `photos` storage bucket.
+   in the SQL editor. It's safe to re-run on a fresh database — every
+   statement is additive (`if not exists` / `add column if not exists`).
+   It creates the tables **and** the public `photos` storage bucket.
 2. Push this repo to GitHub and import it into Vercel.
 3. Add environment variables in Vercel:
    - `SUPABASE_URL` — Project Settings → API → Project URL
    - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role key
    - `AUTH_SECRET` — a long random string (used to hash verification codes)
-   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` —
-     optional; only needed to send real SMS. Without them, verification
-     codes are logged server-side instead of texted, so leaving them unset
-     is fine for a soft launch, but nobody will receive real texts.
+   - `RESEND_API_KEY`, `RESEND_FROM_EMAIL` — optional; only needed to send
+     real email. Without them, verification codes are logged server-side
+     instead of emailed, so leaving them unset is fine for a soft launch,
+     but nobody will receive real emails. `RESEND_FROM_EMAIL` needs a
+     verified sending domain in your Resend account.
 4. Deploy. Done.
 
 ## Architecture notes
@@ -158,7 +159,7 @@ phone number, then join with the room code.
 ```
 src/
   app/
-    page.tsx                    onboarding: phone → code → profile → room
+    page.tsx                    onboarding: email → code → profile → room
     home/page.tsx                room home: both games, your turn, memories
     new/page.tsx                 create an Other Half challenge
     challenge/[id]/page.tsx      Other Half: draw → reveal → result
@@ -172,8 +173,8 @@ src/
       files/                      local-store file serving
   components/                    DrawingBoard, RevealSequence, RandomCard…
   lib/
-    auth/                        phone + OTP helpers
-    notify/                      SMS provider abstraction + events
+    auth/                        email + OTP helpers
+    notify/                      email provider abstraction + events
     games/random/                prompts, 24h logic, countdown formatting
     store/                       Store interface + Supabase/local backends
     image-client.ts              compression, stroke replay, compositing

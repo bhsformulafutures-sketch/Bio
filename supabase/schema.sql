@@ -1,17 +1,24 @@
 -- The Other Half — database schema
 -- Run this in the Supabase SQL editor (or `supabase db push`).
--- Safe to re-run: everything is `if not exists` / additive.
+-- Safe to re-run on a fresh database: everything is `if not exists` /
+-- additive. NOTE: if your database still has the old phone-based `users`
+-- and `phone_verifications` tables from before email verification, this
+-- file will NOT rename them for you (create-if-not-exists is a no-op on
+-- an existing table). Run this once first:
+--   alter table users rename column phone to email;
+--   alter table phone_verifications rename to email_verifications;
+--   alter table email_verifications rename column phone to email;
 
 create extension if not exists pgcrypto;
 
 -- ─────────────────────────────────────────────────────────────
--- Identity: a person is a phone number + a profile. Verified once,
--- then reused across every room they belong to. The phone is what
+-- Identity: a person is an email address + a profile. Verified once,
+-- then reused across every room they belong to. The email is what
 -- lets us deliver notifications.
 -- ─────────────────────────────────────────────────────────────
 create table if not exists users (
   id          uuid primary key default gen_random_uuid(),
-  phone       text not null unique,
+  email       text not null unique,
   name        text not null,
   avatar      text,                       -- an emoji the person picks
   token       text not null unique,       -- auth token, stored in an httpOnly cookie
@@ -20,10 +27,10 @@ create table if not exists users (
 
 create index if not exists users_token_idx on users(token);
 
--- One-time codes for phone sign-in. Codes are hashed, expire quickly,
+-- One-time codes for email sign-in. Codes are hashed, expire quickly,
 -- and lock out after too many wrong tries.
-create table if not exists phone_verifications (
-  phone       text primary key,
+create table if not exists email_verifications (
+  email       text primary key,
   code_hash   text not null,
   expires_at  timestamptz not null,
   attempts    integer not null default 0,
@@ -118,7 +125,7 @@ create index if not exists random_submissions_random_idx on random_submissions(r
 -- and locked down (no client ever holds a Supabase key).
 -- ─────────────────────────────────────────────────────────────
 alter table users enable row level security;
-alter table phone_verifications enable row level security;
+alter table email_verifications enable row level security;
 alter table rooms enable row level security;
 alter table participants enable row level security;
 alter table challenges enable row level security;

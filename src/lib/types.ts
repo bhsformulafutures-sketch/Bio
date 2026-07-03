@@ -2,12 +2,12 @@ export type HiddenSide = "left" | "right" | "top" | "bottom";
 export type ChallengeStatus = "waiting" | "completed";
 export type RandomStatus = "open" | "completed" | "expired";
 
-/** The signed-in person's profile (no phone leaves the server in full). */
+/** The signed-in person's profile (no email leaves the server in full). */
 export interface UserDTO {
   id: string;
   name: string;
   avatar: string | null;
-  phoneHint: string | null; // last 4 digits, e.g. "•••• 4821"
+  emailHint: string | null; // masked address, e.g. "j***@gmail.com"
 }
 
 /** What the client knows about the signed-in pair, inside a room. */

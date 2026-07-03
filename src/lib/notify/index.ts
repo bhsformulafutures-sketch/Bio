@@ -1,27 +1,26 @@
-import type { SmsProvider } from "./types";
+import type { EmailProvider } from "./types";
 import { consoleProvider } from "./providers/console";
-import { createTwilioProvider } from "./providers/twilio";
+import { createResendProvider } from "./providers/resend";
 
-let provider: SmsProvider | null = null;
+let provider: EmailProvider | null = null;
 
 /**
- * Pick the SMS backend from the environment. Set the three TWILIO_* vars to
- * go live; otherwise everything runs on the console provider so the app
- * works with zero configuration.
+ * Pick the email backend from the environment. Set RESEND_API_KEY and
+ * RESEND_FROM_EMAIL to go live; otherwise everything runs on the console
+ * provider so the app works with zero configuration.
  */
-export function getSmsProvider(): SmsProvider {
+export function getEmailProvider(): EmailProvider {
   if (!provider) {
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = process.env.TWILIO_FROM_NUMBER;
-    provider = sid && token && from ? createTwilioProvider(sid, token, from) : consoleProvider;
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL;
+    provider = apiKey && from ? createResendProvider(apiKey, from) : consoleProvider;
   }
   return provider;
 }
 
-/** Whether real SMS is configured (controls whether dev codes are shown). */
-export function smsIsLive(): boolean {
-  return getSmsProvider().live;
+/** Whether real email is configured (controls whether dev codes are shown). */
+export function emailIsLive(): boolean {
+  return getEmailProvider().live;
 }
 
-export type { SmsProvider } from "./types";
+export type { EmailProvider } from "./types";

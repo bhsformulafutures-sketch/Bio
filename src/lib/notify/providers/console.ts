@@ -1,15 +1,15 @@
-import type { SmsProvider } from "../types";
+import type { EmailProvider } from "../types";
 
 /**
  * The zero-config provider. Nothing is actually sent — messages are logged
- * so the phone-verification and notification flows work end to end with no
+ * so the email-verification and notification flows work end to end with no
  * accounts or API keys. Because `live` is false, the app also surfaces
  * verification codes on-screen in this mode.
  */
-export const consoleProvider: SmsProvider = {
+export const consoleProvider: EmailProvider = {
   name: "console",
   live: false,
-  async send(to: string, body: string): Promise<void> {
-    console.log(`\n📲 [sms → ${to}]\n${body}\n`);
+  async send(to: string, subject: string, body: string): Promise<void> {
+    console.log(`\n📧 [email → ${to}] ${subject}\n${body}\n`);
   },
 };

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     await getSmsProvider().send(
       phone,
-      `Two of Us: your code is ${code}. It expires in 10 minutes.`
+      `The Other Half: your code is ${code}. It expires in 10 minutes.`
     );
 
     return NextResponse.json({

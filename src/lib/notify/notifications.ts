@@ -2,7 +2,7 @@ import { getStore } from "../store";
 import { getSmsProvider } from "./index";
 import type { ParticipantRecord } from "../store/types";
 
-const APP_NAME = "Two of Us";
+const APP_NAME = "The Other Half";
 
 /** Resolve a participant's phone (via their user account), if any. */
 async function phoneOf(participant: ParticipantRecord | null): Promise<string | null> {

@@ -71,7 +71,7 @@ export default function HomePage() {
   const totalMoments = memories.length + doneRandoms.length;
 
   const share = async () => {
-    const text = `Join me on Two of Us 💞 Room code: ${session.room.code} — ${window.location.origin}`;
+    const text = `Join me on The Other Half 💞 Room code: ${session.room.code} — ${window.location.origin}`;
     try {
       if (navigator.share) await navigator.share({ text });
       else {

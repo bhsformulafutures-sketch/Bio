@@ -1,4 +1,4 @@
--- Two of Us — database schema
+-- The Other Half — database schema
 -- Run this in the Supabase SQL editor (or `supabase db push`).
 -- Safe to re-run: everything is `if not exists` / additive.
 

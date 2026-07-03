@@ -1,4 +1,4 @@
-# Two of Us 💞
+# The Other Half 💞
 
 A tiny, private world for two — playful photo mini-games and shared
 moments, just the two of you. Sign up with your phone, create or join a

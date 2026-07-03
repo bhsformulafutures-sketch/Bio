@@ -11,7 +11,7 @@ import { toast } from "./Toast";
 export function Logo({ className = "text-xl" }: { className?: string }) {
   return (
     <span className={`font-display font-bold tracking-tight text-ink ${className}`}>
-      two of <span className="text-accent">us</span>
+      The Other <span className="text-accent">Half</span>
     </span>
   );
 }

@@ -3,7 +3,7 @@ import "./globals.css";
 import { Toaster } from "@/components/Toast";
 
 export const metadata: Metadata = {
-  title: "Two of Us",
+  title: "The Other Half",
   description:
     "A tiny, private world for two — playful photo games and shared moments, just the two of you.",
 };

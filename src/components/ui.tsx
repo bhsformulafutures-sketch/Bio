@@ -36,12 +36,25 @@ export function Button({
     <button
       {...props}
       disabled={disabled || loading}
-      className={`relative inline-flex items-center justify-center gap-2 rounded-full font-semibold
-        transition-all duration-150 active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100
+      className={`group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full font-semibold
+        transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]
+        hover:-translate-y-px active:translate-y-0 active:scale-[0.97]
+        disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100
         ${VARIANTS[variant]} ${sizes[size]} ${className}`}
     >
-      {loading && <Spinner className="size-4" />}
-      {children}
+      {/* subtle sheen that sweeps on hover for the filled variant */}
+      {variant === "primary" && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r
+            from-transparent via-white/25 to-transparent transition-transform duration-700
+            group-hover:translate-x-full"
+        />
+      )}
+      <span className="relative z-10 inline-flex items-center justify-center gap-2">
+        {loading && <Spinner className="size-4" />}
+        {children}
+      </span>
     </button>
   );
 }

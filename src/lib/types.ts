@@ -64,6 +64,18 @@ export function isPhotoFill(action: DrawAction): action is PhotoFill {
   return (action as PhotoFill).kind === "photo";
 }
 
+/** A scrapbook album: a named collection of completed memories.
+ *  A memory can live in any number of albums. */
+export interface AlbumDTO {
+  id: string;
+  name: string;
+  createdAt: string;
+  /** ids of the completed challenges filed into this album, newest first */
+  memoryIds: string[];
+  /** convenience count (memoryIds.length) */
+  count: number;
+}
+
 /** One room a browser belongs to (for the room switcher). */
 export interface RoomSummaryDTO {
   id: string;

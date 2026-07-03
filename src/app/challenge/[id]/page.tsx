@@ -7,10 +7,12 @@ import type { ChallengeDTO, SessionDTO } from "@/lib/types";
 import { api, ApiError } from "@/lib/api";
 import { compositeMerged } from "@/lib/image-client";
 import { Header } from "@/components/Header";
-import { Button, Card, Spinner } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
+import { Skeleton } from "@/components/motion";
 import { DrawingBoard } from "@/components/DrawingBoard";
 import { RevealSequence } from "@/components/RevealSequence";
 import { ResultView } from "@/components/ResultView";
+import { AddToAlbum } from "@/components/AddToAlbum";
 import { formatDate } from "@/components/GalleryCard";
 import { toast } from "@/components/Toast";
 
@@ -120,8 +122,13 @@ export default function ChallengePage({
 
   if (!challenge) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <Spinner className="size-7 text-accent" />
+      <div className="min-h-dvh pb-10">
+        <div className="sticky top-0 z-40 h-14 border-b border-line/70 bg-paper/80 backdrop-blur-md" />
+        <main className="mx-auto flex max-w-lg flex-col gap-4 px-4 pt-5">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="aspect-square rounded-2xl" />
+        </main>
       </div>
     );
   }
@@ -169,8 +176,14 @@ export default function ChallengePage({
             <div className="animate-fade-up" style={{ animationDelay: "80ms" }}>
               <ResultView challenge={challenge} nudge={justRevealed} />
             </div>
+            <div
+              className="animate-fade-up flex justify-center"
+              style={{ animationDelay: "140ms" }}
+            >
+              <AddToAlbum challengeId={challenge.id} />
+            </div>
             {justRevealed && (
-              <Link href="/home" className="animate-fade-up" style={{ animationDelay: "160ms" }}>
+              <Link href="/home" className="animate-fade-up" style={{ animationDelay: "200ms" }}>
                 <Button variant="soft" className="w-full">
                   Saved to your gallery — back home
                 </Button>

@@ -1,4 +1,4 @@
-import type { ChallengeDTO, RoomSummaryDTO, SessionDTO } from "./types";
+import type { AlbumDTO, ChallengeDTO, RoomSummaryDTO, SessionDTO } from "./types";
 
 export class ApiError extends Error {
   status: number;
@@ -94,4 +94,39 @@ export const api = {
       { method: "POST", body: form }
     );
   },
+
+  /* ---- Albums ---- */
+
+  listAlbums: () => request<{ albums: AlbumDTO[] }>("/api/albums"),
+
+  createAlbum: (name: string) =>
+    request<{ album: AlbumDTO }>("/api/albums", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+
+  renameAlbum: (id: string, name: string) =>
+    request<{ album: AlbumDTO }>(`/api/albums/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteAlbum: (id: string) =>
+    request<{ ok: true }>(`/api/albums/${id}`, { method: "DELETE" }),
+
+  addToAlbum: (albumId: string, challengeId: string) =>
+    request<{ ok: true }>(`/api/albums/${albumId}/memories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeId }),
+    }),
+
+  removeFromAlbum: (albumId: string, challengeId: string) =>
+    request<{ ok: true }>(`/api/albums/${albumId}/memories`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ challengeId }),
+    }),
 };

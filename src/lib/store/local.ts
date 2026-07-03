@@ -3,6 +3,8 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { newRoomCode, newToken } from "../id";
 import type {
+  AlbumMemoryRecord,
+  AlbumRecord,
   ChallengeRecord,
   JoinResult,
   NewChallenge,
@@ -16,6 +18,8 @@ interface Db {
   rooms: RoomRecord[];
   participants: ParticipantRecord[];
   challenges: ChallengeRecord[];
+  albums?: AlbumRecord[];
+  albumMemories?: AlbumMemoryRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -37,12 +41,20 @@ export class LocalStore implements Store {
     return next;
   }
 
-  private async readDb(): Promise<Db> {
+  private async readDb(): Promise<Required<Db>> {
+    let db: Db;
     try {
-      return JSON.parse(await fs.readFile(DB_FILE, "utf8")) as Db;
+      db = JSON.parse(await fs.readFile(DB_FILE, "utf8")) as Db;
     } catch {
-      return { rooms: [], participants: [], challenges: [] };
+      db = { rooms: [], participants: [], challenges: [] };
     }
+    return {
+      rooms: db.rooms ?? [],
+      participants: db.participants ?? [],
+      challenges: db.challenges ?? [],
+      albums: db.albums ?? [],
+      albumMemories: db.albumMemories ?? [],
+    };
   }
 
   private async writeDb(db: Db): Promise<void> {
@@ -110,9 +122,14 @@ export class LocalStore implements Store {
   deleteRoom(roomId: string): Promise<void> {
     return this.locked(async () => {
       const db = await this.readDb();
+      const albumIds = new Set(
+        db.albums.filter((a) => a.roomId === roomId).map((a) => a.id)
+      );
       db.rooms = db.rooms.filter((r) => r.id !== roomId);
       db.participants = db.participants.filter((p) => p.roomId !== roomId);
       db.challenges = db.challenges.filter((c) => c.roomId !== roomId);
+      db.albums = db.albums.filter((a) => a.roomId !== roomId);
+      db.albumMemories = db.albumMemories.filter((m) => !albumIds.has(m.albumId));
       await this.writeDb(db);
       await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
         recursive: true,
@@ -174,6 +191,90 @@ export class LocalStore implements Store {
         challenge.mergedPath = mergedPath;
         await this.writeDb(db);
       }
+    });
+  }
+
+  /* ---- Albums ---- */
+
+  createAlbum(roomId: string, name: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const album: AlbumRecord = {
+        id: randomUUID(),
+        roomId,
+        name,
+        createdAt: new Date().toISOString(),
+      };
+      db.albums.push(album);
+      await this.writeDb(db);
+      return album;
+    });
+  }
+
+  async listAlbums(roomId: string): Promise<AlbumRecord[]> {
+    const db = await this.readDb();
+    return db.albums
+      .filter((a) => a.roomId === roomId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getAlbum(id: string): Promise<AlbumRecord | null> {
+    const db = await this.readDb();
+    return db.albums.find((a) => a.id === id) ?? null;
+  }
+
+  renameAlbum(id: string, name: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const album = db.albums.find((a) => a.id === id);
+      if (!album) return null;
+      album.name = name;
+      await this.writeDb(db);
+      return album;
+    });
+  }
+
+  deleteAlbum(id: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.albums = db.albums.filter((a) => a.id !== id);
+      db.albumMemories = db.albumMemories.filter((m) => m.albumId !== id);
+      await this.writeDb(db);
+    });
+  }
+
+  async listAlbumMemories(roomId: string): Promise<AlbumMemoryRecord[]> {
+    const db = await this.readDb();
+    const albumIds = new Set(
+      db.albums.filter((a) => a.roomId === roomId).map((a) => a.id)
+    );
+    return db.albumMemories.filter((m) => albumIds.has(m.albumId));
+  }
+
+  addMemoryToAlbum(albumId: string, challengeId: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const exists = db.albumMemories.some(
+        (m) => m.albumId === albumId && m.challengeId === challengeId
+      );
+      if (!exists) {
+        db.albumMemories.push({
+          albumId,
+          challengeId,
+          addedAt: new Date().toISOString(),
+        });
+        await this.writeDb(db);
+      }
+    });
+  }
+
+  removeMemoryFromAlbum(albumId: string, challengeId: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.albumMemories = db.albumMemories.filter(
+        (m) => !(m.albumId === albumId && m.challengeId === challengeId)
+      );
+      await this.writeDb(db);
     });
   }
 

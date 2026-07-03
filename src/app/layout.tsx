@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/Toast";
+import { FloatingAccents } from "@/components/motion";
 
 export const metadata: Metadata = {
-  title: "Other Half",
+  title: "The Other Half",
   description:
     "A private game for two: one of you shares half a photo, the other draws what they imagine is missing. Then the truth is revealed.",
 };
@@ -22,6 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-dvh">
+        <FloatingAccents />
         {children}
         <Toaster />
       </body>

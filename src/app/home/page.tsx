@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ChallengeDTO, SessionDTO } from "@/lib/types";
+import type { AlbumDTO, ChallengeDTO, SessionDTO } from "@/lib/types";
 import { api } from "@/lib/api";
 import { Header } from "@/components/Header";
-import { Button, Card, Spinner } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
 import { GalleryCard, formatDate } from "@/components/GalleryCard";
+import { AlbumShelf } from "@/components/AlbumShelf";
+import { Skeleton } from "@/components/motion";
 import { toast } from "@/components/Toast";
 
 const POLL_MS = 12_000;
@@ -16,16 +18,27 @@ export default function HomePage() {
   const router = useRouter();
   const [session, setSession] = useState<SessionDTO | null>(null);
   const [challenges, setChallenges] = useState<ChallengeDTO[] | null>(null);
+  const [albums, setAlbums] = useState<AlbumDTO[]>([]);
+
+  const refreshAlbums = useCallback(async () => {
+    try {
+      const { albums } = await api.listAlbums();
+      setAlbums(albums);
+    } catch {
+      /* albums are non-critical; leave the last known list in place */
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
       const [me, list] = await Promise.all([api.me(), api.listChallenges()]);
       setSession(me);
       setChallenges(list.challenges);
+      refreshAlbums();
     } catch (error) {
       if ((error as { status?: number }).status === 401) router.replace("/");
     }
-  }, [router]);
+  }, [router, refreshAlbums]);
 
   /* Initial load + gentle polling + refresh when the tab regains focus. */
   useEffect(() => {
@@ -41,8 +54,19 @@ export default function HomePage() {
 
   if (!session || !challenges) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <Spinner className="size-7 text-accent" />
+      <div className="min-h-dvh pb-28">
+        <div className="sticky top-0 z-40 h-14 border-b border-line/70 bg-paper/80 backdrop-blur-md" />
+        <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pt-6">
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-7 w-44" />
+            <Skeleton className="h-4 w-60" />
+          </div>
+          <Skeleton className="h-24 rounded-3xl" />
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="aspect-square" />
+            <Skeleton className="aspect-square" />
+          </div>
+        </main>
       </div>
     );
   }
@@ -51,9 +75,11 @@ export default function HomePage() {
   const waitingOnPartner = challenges.filter((c) => c.status === "waiting" && c.mine);
   const memories = challenges.filter((c) => c.status === "completed");
   const partnerName = session.partner?.name;
+  const previews: Record<string, string> = {};
+  for (const c of memories) previews[c.id] = c.mergedUrl ?? c.visibleUrl;
 
   const share = async () => {
-    const text = `Join me on Other Half! Room code: ${session.room.code} — ${window.location.origin}`;
+    const text = `Join me on The Other Half! Room code: ${session.room.code} — ${window.location.origin}`;
     try {
       if (navigator.share) await navigator.share({ text });
       else {
@@ -158,19 +184,25 @@ export default function HomePage() {
           </section>
         )}
 
+        {(albums.length > 0 || memories.length > 0) && (
+          <div className="animate-fade-up">
+            <AlbumShelf albums={albums} previews={previews} onChanged={refreshAlbums} />
+          </div>
+        )}
+
         <section className="animate-fade-up flex flex-col gap-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
             Memories 💛
           </h2>
           {memories.length === 0 ? (
             <div className="dotted flex flex-col items-center gap-2 rounded-3xl border border-line py-12 text-center">
-              <span className="text-3xl">🖼️</span>
+              <span className="animate-float text-3xl">🖼️</span>
               <p className="max-w-56 text-sm text-soft">
                 Completed challenges live here forever. Send the first one!
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="stagger grid grid-cols-2 gap-3">
               {memories.map((c) => (
                 <GalleryCard key={c.id} challenge={c} />
               ))}

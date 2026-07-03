@@ -63,26 +63,27 @@ export default function LandingPage() {
       </div>
 
       {/* playful hero: a torn photo */}
-      <div
-        className="animate-fade-up mx-auto flex w-56 overflow-hidden rounded-2xl shadow-lift"
-        style={{ animationDelay: "80ms", aspectRatio: "4 / 3" }}
-        aria-hidden
-      >
-        <div className="relative w-1/2 bg-gradient-to-br from-sky-200 to-emerald-200">
-          <div className="absolute bottom-2 left-2 size-8 rounded-full bg-amber-300" />
-          <div className="absolute right-0 top-0 h-full w-px border-r-2 border-dashed border-white/80" />
-        </div>
-        <div className="dotted relative w-1/2 bg-surface">
-          <svg viewBox="0 0 60 45" className="absolute inset-0 h-full w-full text-accent">
-            <path
-              d="M8 36 C 18 12, 26 10, 34 24 S 48 30, 54 18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            <circle cx="16" cy="14" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
-          </svg>
+      <div className="animate-fade-up" style={{ animationDelay: "80ms" }} aria-hidden>
+        <div
+          className="animate-float-slow mx-auto flex w-56 -rotate-2 overflow-hidden rounded-2xl border-4 border-white shadow-polaroid"
+          style={{ aspectRatio: "4 / 3" }}
+        >
+          <div className="relative w-1/2 bg-gradient-to-br from-sky-200 to-emerald-200">
+            <div className="absolute bottom-2 left-2 size-8 rounded-full bg-amber-300" />
+            <div className="absolute right-0 top-0 h-full w-px border-r-2 border-dashed border-white/80" />
+          </div>
+          <div className="dotted relative w-1/2 bg-surface">
+            <svg viewBox="0 0 60 45" className="absolute inset-0 h-full w-full text-accent">
+              <path
+                d="M8 36 C 18 12, 26 10, 34 24 S 48 30, 54 18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+              <circle cx="16" cy="14" r="4" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </div>
         </div>
       </div>
 

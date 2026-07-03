@@ -1,6 +1,17 @@
-import type { ChallengeDTO, SessionDTO } from "./types";
+import type { AlbumDTO, ChallengeDTO, SessionDTO } from "./types";
 import { getStore } from "./store";
-import type { ChallengeRecord, SessionRecord } from "./store/types";
+import type { AlbumRecord, ChallengeRecord, SessionRecord } from "./store/types";
+
+/** Shape an album for the client, given the ordered ids of its memories. */
+export function albumToDTO(album: AlbumRecord, memoryIds: string[]): AlbumDTO {
+  return {
+    id: album.id,
+    name: album.name,
+    createdAt: album.createdAt,
+    memoryIds,
+    count: memoryIds.length,
+  };
+}
 
 export function sessionToDTO(session: SessionRecord): SessionDTO {
   return {

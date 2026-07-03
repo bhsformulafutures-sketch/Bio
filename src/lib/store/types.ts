@@ -45,6 +45,20 @@ export interface NewChallenge {
   visiblePath: string;
 }
 
+export interface AlbumRecord {
+  id: string;
+  roomId: string;
+  name: string;
+  createdAt: string;
+}
+
+/** Which memory (challenge) belongs to which album — many-to-many. */
+export interface AlbumMemoryRecord {
+  albumId: string;
+  challengeId: string;
+  addedAt: string;
+}
+
 export interface SessionRecord {
   participant: ParticipantRecord;
   room: RoomRecord;
@@ -76,6 +90,18 @@ export interface Store {
     drawingPath: string
   ): Promise<ChallengeRecord | "conflict" | null>;
   setMergedPath(id: string, mergedPath: string): Promise<void>;
+
+  /* ---- Albums ---- */
+  createAlbum(roomId: string, name: string): Promise<AlbumRecord>;
+  listAlbums(roomId: string): Promise<AlbumRecord[]>;
+  getAlbum(id: string): Promise<AlbumRecord | null>;
+  renameAlbum(id: string, name: string): Promise<AlbumRecord | null>;
+  deleteAlbum(id: string): Promise<void>;
+  /** Every album↔memory link in a room (for counts and covers). */
+  listAlbumMemories(roomId: string): Promise<AlbumMemoryRecord[]>;
+  addMemoryToAlbum(albumId: string, challengeId: string): Promise<void>;
+  removeMemoryFromAlbum(albumId: string, challengeId: string): Promise<void>;
+
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;
   fileUrl(path: string): string;
 }

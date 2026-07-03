@@ -1,4 +1,4 @@
-# Other Half 📸✏️
+# The Other Half 📸✏️
 
 A private game for two people at a time. One of you uploads a photo — the app
 hides part of it. The other only sees the visible half and recreates what they
@@ -29,6 +29,16 @@ rooms (one per partner-in-crime). From the menu you can hop between rooms,
 create a new one, join another with a code, copy the current code, or
 **delete a room** — which permanently removes every photo, drawing and
 memory in it, for both people (two-tap confirm).
+
+### Albums
+
+Completed memories can be gathered into **scrapbook albums** — named
+collections that feel like organizing printed photos rather than folders.
+Create as many as you like, name them anything, and file any memory into one
+or more of them. From a memory's page tap **Add to album**; from the home
+screen the album shelf shows your taped-down covers, and opening one lets you
+rename it, remove memories, or delete the album (the memories themselves stay
+safe in the gallery). A memory can live in any number of albums at once.
 
 ## Stack
 
@@ -99,11 +109,12 @@ window) and join with the room code.
 src/
   app/
     page.tsx                    landing — create/join room
-    home/page.tsx               room home: your turn, waiting, gallery
+    home/page.tsx               room home: your turn, waiting, albums, gallery
     new/page.tsx                create a challenge
     challenge/[id]/page.tsx     draw → reveal → result (state machine)
+    album/[id]/page.tsx         a scrapbook album of memories
     api/                        route handlers (all data access)
-  components/                   DrawingBoard, RevealSequence, CompareSlider…
+  components/                   DrawingBoard, RevealSequence, AlbumShelf, motion…
   lib/
     store/                      Store interface + Supabase/local backends
     image-client.ts             compression, stroke replay, compositing

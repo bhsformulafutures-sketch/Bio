@@ -146,6 +146,24 @@ export function RevealSequence({ challenge, drawingSrc, onDone }: RevealSequence
             }}
           />
         </div>
+        {/* a couple of sparkles once the truth has fully settled in */}
+        {ghost && (
+          <>
+            <span
+              aria-hidden
+              className="animate-sparkle pointer-events-none absolute right-4 top-4 text-2xl"
+            >
+              ✨
+            </span>
+            <span
+              aria-hidden
+              className="animate-sparkle pointer-events-none absolute bottom-5 left-5 text-xl"
+              style={{ animationDelay: "0.4s" }}
+            >
+              ✨
+            </span>
+          </>
+        )}
       </div>
       <p className="mt-4 text-center text-sm text-soft">
         {ghost ? "Comparing imaginations…" : "Here it comes…"}

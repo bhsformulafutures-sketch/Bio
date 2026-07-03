@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
-import { Avatar, Button, Card, Spinner, TextInput } from "@/components/ui";
+import { Avatar, Button, Card, Skeleton, TextInput } from "@/components/ui";
 import { Logo } from "@/components/Header";
 import { toast } from "@/components/Toast";
 import { isValidEmail, normalizeEmail } from "@/lib/auth/email";
@@ -31,9 +31,13 @@ export default function OnboardingPage() {
 
   if (checking) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <Spinner className="size-7 text-accent" />
-      </div>
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-8 px-6 py-12">
+        <div className="flex flex-col items-center gap-3">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+        <Skeleton className="h-40 w-full" />
+      </main>
     );
   }
 

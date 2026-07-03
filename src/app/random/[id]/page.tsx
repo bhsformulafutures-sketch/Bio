@@ -8,7 +8,7 @@ import { api, ApiError } from "@/lib/api";
 import { canvasToBlob, downscale, fileToImage, JPEG_QUALITY } from "@/lib/image-client";
 import { CATEGORY_META, type PromptCategory } from "@/lib/games/random/prompts";
 import { Header } from "@/components/Header";
-import { Avatar, Badge, Button, Card, Spinner, TextInput } from "@/components/ui";
+import { Avatar, Badge, Button, Card, Skeleton, Spinner, TextInput } from "@/components/ui";
 import { Countdown } from "@/components/Countdown";
 import { toast } from "@/components/Toast";
 
@@ -113,8 +113,20 @@ export default function RandomChallengePage({
 
   if (!random) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <Spinner className="size-7 text-accent" />
+      <div className="min-h-dvh pb-12">
+        <Header session={session} />
+        <main className="mx-auto flex max-w-lg flex-col gap-5 px-4 pt-5">
+          <Skeleton className="h-4 w-16" />
+          <div className="flex flex-col gap-3 rounded-3xl bg-line/40 p-5">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-24" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+            <Skeleton className="h-7 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+          <Skeleton className="h-64 w-full" />
+        </main>
       </div>
     );
   }

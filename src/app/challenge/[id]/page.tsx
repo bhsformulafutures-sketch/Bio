@@ -7,7 +7,7 @@ import type { ChallengeDTO, SessionDTO } from "@/lib/types";
 import { api, ApiError } from "@/lib/api";
 import { compositeMerged } from "@/lib/image-client";
 import { Header } from "@/components/Header";
-import { Button, Card, Spinner } from "@/components/ui";
+import { Button, Card, Skeleton } from "@/components/ui";
 import { DrawingBoard } from "@/components/DrawingBoard";
 import { RevealSequence } from "@/components/RevealSequence";
 import { ResultView } from "@/components/ResultView";
@@ -120,8 +120,14 @@ export default function ChallengePage({
 
   if (!challenge) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <Spinner className="size-7 text-accent" />
+      <div className="min-h-dvh pb-10">
+        <Header session={session} />
+        <main className="mx-auto flex max-w-lg flex-col gap-4 px-4 pt-5">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="aspect-square w-full" />
+          <Skeleton className="h-11 w-full" />
+        </main>
       </div>
     );
   }

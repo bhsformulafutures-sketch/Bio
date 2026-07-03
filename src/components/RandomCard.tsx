@@ -11,14 +11,21 @@ function emojiFor(category: string): string {
 }
 
 /** A compact Random Challenge tile for the home feed. */
-export function RandomCard({ random }: { random: RandomDTO }) {
+export function RandomCard({
+  random,
+  delayMs = 0,
+}: {
+  random: RandomDTO;
+  delayMs?: number;
+}) {
   const cover = random.submissions[0]?.photoUrl ?? null;
 
   return (
     <Link
       href={`/random/${random.id}`}
-      className="group block overflow-hidden rounded-2xl bg-surface shadow-card transition-all
+      className="group block animate-fade-up overflow-hidden rounded-2xl bg-surface shadow-card transition-all
         duration-200 hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98]"
+      style={{ animationDelay: `${delayMs}ms` }}
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-accent-soft to-dusk-soft">
         {cover ? (

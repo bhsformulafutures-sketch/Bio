@@ -11,13 +11,20 @@ export function formatDate(iso: string): string {
 }
 
 /** One memory in the gallery grid. */
-export function GalleryCard({ challenge }: { challenge: ChallengeDTO }) {
+export function GalleryCard({
+  challenge,
+  delayMs = 0,
+}: {
+  challenge: ChallengeDTO;
+  delayMs?: number;
+}) {
   const preview = challenge.mergedUrl ?? challenge.visibleUrl;
   return (
     <Link
       href={`/challenge/${challenge.id}`}
-      className="group block overflow-hidden rounded-2xl bg-surface shadow-card transition-all
+      className="group block animate-fade-up overflow-hidden rounded-2xl bg-surface shadow-card transition-all
         duration-200 hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98]"
+      style={{ animationDelay: `${delayMs}ms` }}
     >
       <div
         className="relative w-full overflow-hidden bg-line"

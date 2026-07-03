@@ -28,7 +28,7 @@ export function Countdown({
   const urgent = msUntil(expiresAt) < 60 * 60 * 1000;
 
   return (
-    <span className={`tabular-nums ${urgent ? "text-accent" : ""} ${className}`}>
+    <span className={`tabular-nums ${urgent ? "animate-breathe text-accent" : ""} ${className}`}>
       {label}
     </span>
   );

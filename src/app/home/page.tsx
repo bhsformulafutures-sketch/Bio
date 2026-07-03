@@ -98,11 +98,15 @@ export default function HomePage() {
     }
   };
 
+  // Sections enter in a gentle cascade rather than all at once.
+  let delayStep = 0;
+  const nextDelay = () => `${delayStep++ * 80}ms`;
+
   return (
     <div className="min-h-dvh pb-16">
       <Header session={session} />
       <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 pt-6">
-        <div className="animate-fade-up flex items-center gap-3">
+        <div className="animate-fade-up flex items-center gap-3" style={{ animationDelay: nextDelay() }}>
           <Avatar avatar={session.user.avatar} name={session.user.name} className="size-11 text-xl" />
           <div>
             <h1 className="font-display text-2xl font-bold leading-tight">
@@ -117,7 +121,10 @@ export default function HomePage() {
         </div>
 
         {!session.partner && (
-          <Card className="animate-fade-up flex flex-col items-center gap-4 overflow-hidden p-6 text-center">
+          <Card
+            className="animate-fade-up flex flex-col items-center gap-4 overflow-hidden p-6 text-center"
+            style={{ animationDelay: nextDelay() }}
+          >
             <p className="text-sm text-soft">Share this code with your person</p>
             <p className="font-mono text-4xl font-bold tracking-[0.25em] text-ink">
               {session.room.code}
@@ -127,7 +134,7 @@ export default function HomePage() {
         )}
 
         {/* Play together — the two mini-games */}
-        <section className="animate-fade-up flex flex-col gap-3">
+        <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
           <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Play together</h2>
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -159,7 +166,7 @@ export default function HomePage() {
         </section>
 
         {openRandom && (
-          <section className="animate-fade-up flex flex-col gap-3">
+          <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
               Happening now 🎲
             </h2>
@@ -187,7 +194,7 @@ export default function HomePage() {
         )}
 
         {yourTurn.length > 0 && (
-          <section className="animate-fade-up flex flex-col gap-3">
+          <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Your turn ✏️</h2>
             {yourTurn.map((c) => (
               <Link
@@ -221,7 +228,7 @@ export default function HomePage() {
         )}
 
         {waitingOnPartner.length > 0 && (
-          <section className="animate-fade-up flex flex-col gap-3">
+          <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
               Waiting on {partnerName ?? "your partner"} ⌛
             </h2>
@@ -250,7 +257,7 @@ export default function HomePage() {
           </section>
         )}
 
-        <section className="animate-fade-up flex flex-col gap-3">
+        <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
           <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Memories 💛</h2>
           {memories.length === 0 && doneRandoms.length === 0 ? (
             <div className="dotted flex flex-col items-center gap-3 rounded-3xl border border-line py-14 text-center">
@@ -261,11 +268,11 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {memories.map((c) => (
-                <GalleryCard key={c.id} challenge={c} />
+              {memories.map((c, i) => (
+                <GalleryCard key={c.id} challenge={c} delayMs={Math.min(i, 5) * 60} />
               ))}
-              {doneRandoms.map((r) => (
-                <RandomCard key={r.id} random={r} />
+              {doneRandoms.map((r, i) => (
+                <RandomCard key={r.id} random={r} delayMs={Math.min(memories.length + i, 5) * 60} />
               ))}
             </div>
           )}

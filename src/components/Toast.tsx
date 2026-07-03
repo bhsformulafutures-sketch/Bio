@@ -6,6 +6,7 @@ interface ToastItem {
   id: number;
   message: string;
   kind: "info" | "error";
+  leaving: boolean;
 }
 
 const EVENT = "oh:toast";
@@ -23,10 +24,13 @@ export function Toaster() {
     const onToast = (event: Event) => {
       const { message, kind } = (event as CustomEvent).detail;
       const id = nextId++;
-      setItems((current) => [...current, { id, message, kind }]);
+      setItems((current) => [...current, { id, message, kind, leaving: false }]);
       setTimeout(() => {
-        setItems((current) => current.filter((t) => t.id !== id));
-      }, 3200);
+        setItems((current) => current.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+        setTimeout(() => {
+          setItems((current) => current.filter((t) => t.id !== id));
+        }, 250);
+      }, 2950);
     };
     window.addEventListener(EVENT, onToast);
     return () => window.removeEventListener(EVENT, onToast);
@@ -37,7 +41,7 @@ export function Toaster() {
       {items.map((item) => (
         <div
           key={item.id}
-          className={`animate-pop rounded-full px-4 py-2.5 text-sm font-medium shadow-lift ${
+          className={`${item.leaving ? "animate-pop-out" : "animate-pop"} rounded-full px-4 py-2.5 text-sm font-medium shadow-lift ${
             item.kind === "error"
               ? "bg-ink text-red-200"
               : "bg-ink text-paper"

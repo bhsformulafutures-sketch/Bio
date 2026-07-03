@@ -69,12 +69,14 @@ export function Spinner({ className = "size-5" }: { className?: string }) {
 export function Card({
   children,
   className = "",
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   return (
-    <div className={`rounded-3xl bg-surface shadow-card ${className}`}>
+    <div className={`rounded-3xl bg-surface shadow-card ${className}`} style={style}>
       {children}
     </div>
   );

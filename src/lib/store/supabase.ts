@@ -1,10 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { newRoomCode, newToken } from "../id";
+import { newToken } from "../id";
 import type { MemoryKind } from "../types";
 import type {
   AlbumItemRecord,
   AlbumRecord,
   ChallengeRecord,
+  CreateRoomResult,
   JoinResult,
   NewChallenge,
   NewRandom,
@@ -15,7 +16,6 @@ import type {
   RoomRecord,
   Store,
   UserRecord,
-  VerificationRecord,
 } from "./types";
 
 const BUCKET = "photos";
@@ -24,17 +24,9 @@ const BUCKET = "photos";
 
 interface UserRow {
   id: string;
-  email: string;
   name: string;
   avatar: string | null;
   token: string;
-  created_at: string;
-}
-interface VerificationRow {
-  email: string;
-  code_hash: string;
-  expires_at: string;
-  attempts: number;
   created_at: string;
 }
 interface RoomRow {
@@ -122,19 +114,10 @@ const mapAlbumItem = (i: AlbumItemRow): AlbumItemRecord => ({
 
 const mapUser = (u: UserRow): UserRecord => ({
   id: u.id,
-  email: u.email,
   name: u.name,
   avatar: u.avatar,
   token: u.token,
   createdAt: u.created_at,
-});
-
-const mapVerification = (v: VerificationRow): VerificationRecord => ({
-  email: v.email,
-  codeHash: v.code_hash,
-  expiresAt: v.expires_at,
-  attempts: v.attempts,
-  createdAt: v.created_at,
 });
 
 const mapRoom = (r: RoomRow): RoomRecord => ({
@@ -204,55 +187,7 @@ export class SupabaseStore implements Store {
     this.baseUrl = url.replace(/\/$/, "");
   }
 
-  // ── Identity & email verification ──────────────────────────
-
-  async upsertVerification(email: string, codeHash: string, expiresAt: string): Promise<void> {
-    const { error } = await this.client
-      .from("email_verifications")
-      .upsert(
-        { email, code_hash: codeHash, expires_at: expiresAt, attempts: 0, created_at: new Date().toISOString() },
-        { onConflict: "email" }
-      );
-    if (error) throw new Error(error.message);
-  }
-
-  async getVerification(email: string): Promise<VerificationRecord | null> {
-    const { data, error } = await this.client
-      .from("email_verifications")
-      .select()
-      .eq("email", email)
-      .maybeSingle<VerificationRow>();
-    if (error) throw new Error(error.message);
-    return data ? mapVerification(data) : null;
-  }
-
-  async incrementVerificationAttempts(email: string): Promise<void> {
-    const current = await this.getVerification(email);
-    if (!current) return;
-    const { error } = await this.client
-      .from("email_verifications")
-      .update({ attempts: current.attempts + 1 })
-      .eq("email", email);
-    if (error) throw new Error(error.message);
-  }
-
-  async deleteVerification(email: string): Promise<void> {
-    const { error } = await this.client
-      .from("email_verifications")
-      .delete()
-      .eq("email", email);
-    if (error) throw new Error(error.message);
-  }
-
-  async getUserByEmail(email: string): Promise<UserRecord | null> {
-    const { data, error } = await this.client
-      .from("users")
-      .select()
-      .eq("email", email)
-      .maybeSingle<UserRow>();
-    if (error) throw new Error(error.message);
-    return data ? mapUser(data) : null;
-  }
+  // ── Identity ───────────────────────────────────────────────
 
   async getUserByToken(token: string): Promise<UserRecord | null> {
     const { data, error } = await this.client
@@ -274,12 +209,10 @@ export class SupabaseStore implements Store {
     return data ? mapUser(data) : null;
   }
 
-  async createUser(email: string, name: string, avatar: string | null): Promise<UserRecord> {
-    const existing = await this.getUserByEmail(email);
-    if (existing) return existing;
+  async createUser(name: string, avatar: string | null): Promise<UserRecord> {
     const { data, error } = await this.client
       .from("users")
-      .insert({ email, name, avatar, token: newToken() })
+      .insert({ name, avatar, token: newToken() })
       .select()
       .single<UserRow>();
     if (error) throw new Error(error.message);
@@ -306,22 +239,18 @@ export class SupabaseStore implements Store {
 
   // ── Rooms & membership ─────────────────────────────────────
 
-  async createRoom(userId: string, name: string) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const code = newRoomCode();
-      const { data: room, error } = await this.client
-        .from("rooms")
-        .insert({ code })
-        .select()
-        .single<RoomRow>();
-      if (error) {
-        if (error.code === "23505") continue; // unique violation → new code
-        throw new Error(error.message);
-      }
-      const participant = await this.insertParticipant(room.id, userId, name);
-      return { room: mapRoom(room), participant };
+  async createRoom(userId: string, name: string, code: string): Promise<CreateRoomResult> {
+    const { data: room, error } = await this.client
+      .from("rooms")
+      .insert({ code })
+      .select()
+      .single<RoomRow>();
+    if (error) {
+      if (error.code === "23505") return { ok: false, reason: "taken" }; // code already used
+      throw new Error(error.message);
     }
-    throw new Error("Could not allocate a room code");
+    const participant = await this.insertParticipant(room.id, userId, name);
+    return { ok: true, room: mapRoom(room), participant };
   }
 
   private async insertParticipant(roomId: string, userId: string, name: string) {
@@ -363,6 +292,16 @@ export class SupabaseStore implements Store {
       .from("rooms")
       .select()
       .eq("id", roomId)
+      .maybeSingle<RoomRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapRoom(data) : null;
+  }
+
+  async getRoomByCode(code: string): Promise<RoomRecord | null> {
+    const { data, error } = await this.client
+      .from("rooms")
+      .select()
+      .eq("code", code)
       .maybeSingle<RoomRow>();
     if (error) throw new Error(error.message);
     return data ? mapRoom(data) : null;

@@ -2,18 +2,10 @@ import type { ChallengeStatus, HiddenSide, MemoryKind, RandomStatus } from "../t
 
 export interface UserRecord {
   id: string;
-  email: string;
   name: string;
   avatar: string | null;
+  /** Opaque device token — the only credential; persisted in a cookie. */
   token: string;
-  createdAt: string;
-}
-
-export interface VerificationRecord {
-  email: string;
-  codeHash: string;
-  expiresAt: string;
-  attempts: number;
   createdAt: string;
 }
 
@@ -135,27 +127,28 @@ export type JoinResult =
   | { ok: true; room: RoomRecord; participant: ParticipantRecord }
   | { ok: false; reason: "not_found" | "full" | "already_in" };
 
+export type CreateRoomResult =
+  | { ok: true; room: RoomRecord; participant: ParticipantRecord }
+  | { ok: false; reason: "taken" };
+
 /**
  * Persistence boundary. Two implementations:
  *  - SupabaseStore (production: Postgres + Storage)
  *  - LocalStore   (zero-config dev: JSON file + local blobs)
  */
 export interface Store {
-  // ── Identity & email verification ──────────────────────────
-  upsertVerification(email: string, codeHash: string, expiresAt: string): Promise<void>;
-  getVerification(email: string): Promise<VerificationRecord | null>;
-  incrementVerificationAttempts(email: string): Promise<void>;
-  deleteVerification(email: string): Promise<void>;
-  getUserByEmail(email: string): Promise<UserRecord | null>;
+  // ── Identity ───────────────────────────────────────────────
   getUserByToken(token: string): Promise<UserRecord | null>;
   getUserById(id: string): Promise<UserRecord | null>;
-  createUser(email: string, name: string, avatar: string | null): Promise<UserRecord>;
+  createUser(name: string, avatar: string | null): Promise<UserRecord>;
   updateUser(id: string, patch: { name?: string; avatar?: string | null }): Promise<UserRecord>;
 
   // ── Rooms & membership ─────────────────────────────────────
-  createRoom(userId: string, name: string): Promise<{ room: RoomRecord; participant: ParticipantRecord }>;
+  /** Create a room with a caller-chosen code. Fails if the code is taken. */
+  createRoom(userId: string, name: string, code: string): Promise<CreateRoomResult>;
   joinRoom(code: string, userId: string, name: string): Promise<JoinResult>;
   getRoom(roomId: string): Promise<RoomRecord | null>;
+  getRoomByCode(code: string): Promise<RoomRecord | null>;
   getMembership(userId: string, roomId: string): Promise<ParticipantRecord | null>;
   listMemberships(userId: string): Promise<ParticipantRecord[]>;
   getRoomParticipants(roomId: string): Promise<ParticipantRecord[]>;

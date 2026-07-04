@@ -1,24 +1,23 @@
 -- The Other Half — database schema
 -- Run this in the Supabase SQL editor (or `supabase db push`).
 -- Safe to re-run on a fresh database: everything is `if not exists` /
--- additive. NOTE: if your database still has the old phone-based `users`
--- and `phone_verifications` tables from before email verification, this
--- file will NOT rename them for you (create-if-not-exists is a no-op on
--- an existing table). Run this once first:
---   alter table users rename column phone to email;
---   alter table phone_verifications rename to email_verifications;
---   alter table email_verifications rename column phone to email;
+-- additive.
+--
+-- Identity is device-local: a person picks a nickname + avatar and is
+-- issued an opaque token (stored in an httpOnly cookie). There is no
+-- email or phone, and no verification codes. If your database still has
+-- the old email columns/tables, drop them once:
+--   alter table users drop column if exists email;
+--   drop table if exists email_verifications;
 
 create extension if not exists pgcrypto;
 
 -- ─────────────────────────────────────────────────────────────
--- Identity: a person is an email address + a profile. Verified once,
--- then reused across every room they belong to. The email is what
--- lets us deliver notifications.
+-- Identity: a person is a nickname + avatar, keyed by a device token.
+-- Reused across every room they belong to.
 -- ─────────────────────────────────────────────────────────────
 create table if not exists users (
   id          uuid primary key default gen_random_uuid(),
-  email       text not null unique,
   name        text not null,
   avatar      text,                       -- an emoji the person picks
   token       text not null unique,       -- auth token, stored in an httpOnly cookie
@@ -27,18 +26,9 @@ create table if not exists users (
 
 create index if not exists users_token_idx on users(token);
 
--- One-time codes for email sign-in. Codes are hashed, expire quickly,
--- and lock out after too many wrong tries.
-create table if not exists email_verifications (
-  email       text primary key,
-  code_hash   text not null,
-  expires_at  timestamptz not null,
-  attempts    integer not null default 0,
-  created_at  timestamptz not null default now()
-);
-
 -- ─────────────────────────────────────────────────────────────
--- Rooms link exactly two people.
+-- Rooms link exactly two people. The code is chosen by the creator
+-- (e.g. SUNFLOWERS), normalized upstream to uppercase A–Z/0–9.
 -- ─────────────────────────────────────────────────────────────
 create table if not exists rooms (
   id          uuid primary key default gen_random_uuid(),
@@ -151,7 +141,6 @@ create index if not exists album_items_album_idx on album_items(album_id, added_
 -- and locked down (no client ever holds a Supabase key).
 -- ─────────────────────────────────────────────────────────────
 alter table users enable row level security;
-alter table email_verifications enable row level security;
 alter table rooms enable row level security;
 alter table participants enable row level security;
 alter table challenges enable row level security;

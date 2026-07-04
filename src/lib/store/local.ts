@@ -1,12 +1,13 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import { newRoomCode, newToken } from "../id";
+import { newToken } from "../id";
 import type { MemoryKind } from "../types";
 import type {
   AlbumItemRecord,
   AlbumRecord,
   ChallengeRecord,
+  CreateRoomResult,
   JoinResult,
   NewChallenge,
   NewRandom,
@@ -17,12 +18,10 @@ import type {
   RoomRecord,
   Store,
   UserRecord,
-  VerificationRecord,
 } from "./types";
 
 interface Db {
   users: UserRecord[];
-  verifications: VerificationRecord[];
   rooms: RoomRecord[];
   participants: ParticipantRecord[];
   challenges: ChallengeRecord[];
@@ -38,7 +37,6 @@ const FILES_DIR = path.join(DATA_DIR, "files");
 
 const EMPTY_DB: Db = {
   users: [],
-  verifications: [],
   rooms: [],
   participants: [],
   challenges: [],
@@ -77,53 +75,7 @@ export class LocalStore implements Store {
     await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
   }
 
-  // ── Identity & email verification ──────────────────────────
-
-  upsertVerification(email: string, codeHash: string, expiresAt: string) {
-    return this.locked(async () => {
-      const db = await this.readDb();
-      const now = new Date().toISOString();
-      const existing = db.verifications.find((v) => v.email === email);
-      if (existing) {
-        existing.codeHash = codeHash;
-        existing.expiresAt = expiresAt;
-        existing.attempts = 0;
-        existing.createdAt = now;
-      } else {
-        db.verifications.push({ email, codeHash, expiresAt, attempts: 0, createdAt: now });
-      }
-      await this.writeDb(db);
-    });
-  }
-
-  async getVerification(email: string): Promise<VerificationRecord | null> {
-    const db = await this.readDb();
-    return db.verifications.find((v) => v.email === email) ?? null;
-  }
-
-  incrementVerificationAttempts(email: string) {
-    return this.locked(async () => {
-      const db = await this.readDb();
-      const v = db.verifications.find((x) => x.email === email);
-      if (v) {
-        v.attempts += 1;
-        await this.writeDb(db);
-      }
-    });
-  }
-
-  deleteVerification(email: string) {
-    return this.locked(async () => {
-      const db = await this.readDb();
-      db.verifications = db.verifications.filter((v) => v.email !== email);
-      await this.writeDb(db);
-    });
-  }
-
-  async getUserByEmail(email: string): Promise<UserRecord | null> {
-    const db = await this.readDb();
-    return db.users.find((u) => u.email === email) ?? null;
-  }
+  // ── Identity ───────────────────────────────────────────────
 
   async getUserByToken(token: string): Promise<UserRecord | null> {
     const db = await this.readDb();
@@ -135,14 +87,11 @@ export class LocalStore implements Store {
     return db.users.find((u) => u.id === id) ?? null;
   }
 
-  createUser(email: string, name: string, avatar: string | null) {
+  createUser(name: string, avatar: string | null) {
     return this.locked(async () => {
       const db = await this.readDb();
-      const existing = db.users.find((u) => u.email === email);
-      if (existing) return existing;
       const user: UserRecord = {
         id: randomUUID(),
-        email,
         name,
         avatar,
         token: newToken(),
@@ -172,11 +121,12 @@ export class LocalStore implements Store {
 
   // ── Rooms & membership ─────────────────────────────────────
 
-  createRoom(userId: string, name: string) {
+  createRoom(userId: string, name: string, code: string): Promise<CreateRoomResult> {
     return this.locked(async () => {
       const db = await this.readDb();
-      let code = newRoomCode();
-      while (db.rooms.some((r) => r.code === code)) code = newRoomCode();
+      if (db.rooms.some((r) => r.code === code)) {
+        return { ok: false as const, reason: "taken" as const };
+      }
       const room: RoomRecord = {
         id: randomUUID(),
         code,
@@ -193,7 +143,7 @@ export class LocalStore implements Store {
       db.rooms.push(room);
       db.participants.push(participant);
       await this.writeDb(db);
-      return { room, participant };
+      return { ok: true as const, room, participant };
     });
   }
 
@@ -224,6 +174,11 @@ export class LocalStore implements Store {
   async getRoom(roomId: string): Promise<RoomRecord | null> {
     const db = await this.readDb();
     return db.rooms.find((r) => r.id === roomId) ?? null;
+  }
+
+  async getRoomByCode(code: string): Promise<RoomRecord | null> {
+    const db = await this.readDb();
+    return db.rooms.find((r) => r.code === code) ?? null;
   }
 
   async getMembership(userId: string, roomId: string): Promise<ParticipantRecord | null> {

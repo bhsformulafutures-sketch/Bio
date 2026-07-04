@@ -7,7 +7,6 @@ import type {
   RandomDTO,
   RoomSummaryDTO,
   SessionDTO,
-  UserDTO,
 } from "./types";
 
 export class ApiError extends Error {
@@ -53,24 +52,20 @@ const json = (body: unknown): RequestInit => ({
 export const api = {
   me: () => request<SessionDTO>("/api/me"),
 
-  // ── Auth & profile ─────────────────────────────────────────
+  // ── Account & identity ─────────────────────────────────────
   authState: () => request<AuthStateDTO>("/api/auth/state"),
 
-  requestCode: (email: string) =>
-    request<{ ok: true; devCode?: string }>("/api/auth/request-code", json({ email })),
+  getAvatars: () => request<{ avatars: string[] }>("/api/account"),
 
-  verifyCode: (email: string, code: string) =>
-    request<AuthStateDTO>("/api/auth/verify", json({ email, code })),
-
-  getAvatars: () => request<{ avatars: string[] }>("/api/profile"),
-
-  saveProfile: (name: string, avatar: string | null) =>
-    request<{ user: UserDTO }>("/api/profile", json({ name, avatar })),
+  /** Create (or update) this device's identity — nickname + avatar. */
+  saveAccount: (name: string, avatar: string | null) =>
+    request<AuthStateDTO>("/api/account", json({ name, avatar })),
 
   logout: () => request<{ ok: true }>("/api/auth/logout", { method: "POST" }),
 
   // ── Rooms ──────────────────────────────────────────────────
-  createRoom: () => request<SessionDTO>("/api/room", { method: "POST" }),
+  createRoom: (code: string) =>
+    request<SessionDTO>("/api/room", json({ code })),
 
   joinRoom: (code: string) =>
     request<SessionDTO>("/api/room/join", json({ code })),

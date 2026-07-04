@@ -18,14 +18,11 @@ import type {
   SessionRecord,
   UserRecord,
 } from "./store/types";
-import { emailHint } from "./auth/email";
-
 export function userToDTO(user: UserRecord): UserDTO {
   return {
     id: user.id,
     name: user.name,
     avatar: user.avatar,
-    emailHint: emailHint(user.email),
   };
 }
 

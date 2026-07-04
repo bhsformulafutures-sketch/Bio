@@ -4,12 +4,11 @@ export type RandomStatus = "open" | "completed" | "expired";
 /** A memory is one finished game — either an Other Half or a Random Challenge. */
 export type MemoryKind = "challenge" | "random";
 
-/** The signed-in person's profile (no email leaves the server in full). */
+/** The signed-in person's profile. Identity is a device token — no email. */
 export interface UserDTO {
   id: string;
   name: string;
   avatar: string | null;
-  emailHint: string | null; // masked address, e.g. "j***@gmail.com"
 }
 
 /** What the client knows about the signed-in pair, inside a room. */

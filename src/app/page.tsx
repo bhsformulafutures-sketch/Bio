@@ -6,23 +6,27 @@ import { api, ApiError } from "@/lib/api";
 import { Avatar, Button, Card, Skeleton, TextInput } from "@/components/ui";
 import { Logo } from "@/components/Header";
 import { toast } from "@/components/Toast";
-import { isValidEmail, normalizeEmail } from "@/lib/auth/email";
+import {
+  CODE_SUGGESTIONS,
+  ROOM_CODE_MAX,
+  normalizeRoomCode,
+  roomCodeError,
+} from "@/lib/room-code";
 
-type Step = "welcome" | "email" | "code" | "profile" | "room";
+type Step = "welcome" | "profile" | "room";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("welcome");
   const [checking, setChecking] = useState(true);
 
-  // Resume wherever this browser left off.
+  // Resume wherever this device left off — no repeated sign-in.
   useEffect(() => {
     api
       .authState()
       .then((state) => {
         if (state.hasRoom) return router.replace("/home");
-        if (state.authenticated && state.needsProfile) setStep("profile");
-        else if (state.authenticated) setStep("room");
+        if (state.authenticated) setStep("room");
         else setStep("welcome");
         setChecking(false);
       })
@@ -46,17 +50,7 @@ export default function OnboardingPage() {
       <Hero />
       {/* key remounts on step change so each panel plays its entrance */}
       <div key={step} className="animate-rise">
-        {step === "welcome" && <Welcome onNext={() => setStep("email")} />}
-        {step === "email" && <EmailStep onNext={() => setStep("code")} emailRef={emailStore} />}
-        {step === "code" && (
-          <CodeStep
-            emailRef={emailStore}
-            onProfile={() => setStep("profile")}
-            onRoom={() => setStep("room")}
-            onHome={() => router.replace("/home")}
-            onBack={() => setStep("email")}
-          />
-        )}
+        {step === "welcome" && <Welcome onNext={() => setStep("profile")} />}
         {step === "profile" && <ProfileStep onNext={() => setStep("room")} />}
         {step === "room" && <RoomStep onHome={() => router.replace("/home")} />}
       </div>
@@ -65,10 +59,6 @@ export default function OnboardingPage() {
     </main>
   );
 }
-
-/* A tiny shared holder so the email survives between the two auth steps
-   without threading state through props or re-fetching. */
-const emailStore = { current: "" };
 
 function Hero() {
   return (
@@ -97,131 +87,9 @@ function Welcome({ onNext }: { onNext: () => void }) {
         Get started
       </Button>
       <p className="text-center text-xs text-faint">
-        We&apos;ll email you a code — your address is just for notifications.
+        No email, no passwords — just a name and a secret room.
       </p>
     </div>
-  );
-}
-
-function EmailStep({
-  onNext,
-  emailRef,
-}: {
-  onNext: () => void;
-  emailRef: { current: string };
-}) {
-  const [email, setEmail] = useState(emailRef.current);
-  const [busy, setBusy] = useState(false);
-
-  const submit = async () => {
-    if (!isValidEmail(normalizeEmail(email))) {
-      toast("Enter a valid email address.", "error");
-      return;
-    }
-    setBusy(true);
-    try {
-      const { devCode } = await api.requestCode(email);
-      emailRef.current = email;
-      if (devCode) toast(`Dev mode — your code is ${devCode}`);
-      onNext();
-    } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't send a code.", "error");
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Card className="flex flex-col gap-3 p-5">
-      <p className="text-center font-semibold">What&apos;s your email?</p>
-      <TextInput
-        type="email"
-        inputMode="email"
-        placeholder="you@example.com"
-        autoComplete="email"
-        value={email}
-        autoFocus
-        maxLength={254}
-        onChange={(e) => setEmail(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && submit()}
-        className="text-center text-lg tracking-wide"
-      />
-      <Button size="lg" onClick={submit} loading={busy}>
-        Send my code
-      </Button>
-    </Card>
-  );
-}
-
-function CodeStep({
-  emailRef,
-  onProfile,
-  onRoom,
-  onHome,
-  onBack,
-}: {
-  emailRef: { current: string };
-  onProfile: () => void;
-  onRoom: () => void;
-  onHome: () => void;
-  onBack: () => void;
-}) {
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const submit = async (value: string) => {
-    setBusy(true);
-    try {
-      const state = await api.verifyCode(emailRef.current, value);
-      if (state.hasRoom) onHome();
-      else if (state.needsProfile) onProfile();
-      else onRoom();
-    } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't verify that code.", "error");
-      setCode("");
-      setBusy(false);
-    }
-  };
-
-  const resend = async () => {
-    try {
-      const { devCode } = await api.requestCode(emailRef.current);
-      toast(devCode ? `Dev mode — your code is ${devCode}` : "New code sent.");
-    } catch (error) {
-      toast(error instanceof ApiError ? error.message : "Couldn't resend.", "error");
-    }
-  };
-
-  return (
-    <Card className="flex flex-col gap-3 p-5">
-      <p className="text-center font-semibold">Enter your code</p>
-      <p className="-mt-1 text-center text-xs text-faint">
-        Sent to {emailRef.current || "your email"}
-      </p>
-      <TextInput
-        inputMode="numeric"
-        placeholder="••••••"
-        value={code}
-        autoFocus
-        maxLength={6}
-        onChange={(e) => {
-          const next = e.target.value.replace(/\D/g, "").slice(0, 6);
-          setCode(next);
-          if (next.length === 6) submit(next);
-        }}
-        className="text-center font-mono text-2xl tracking-[0.5em]"
-      />
-      <Button size="lg" onClick={() => submit(code)} loading={busy} disabled={code.length !== 6}>
-        Verify
-      </Button>
-      <div className="flex items-center justify-between px-1 text-sm">
-        <button className="font-medium text-faint hover:text-soft" onClick={onBack}>
-          ← Change email
-        </button>
-        <button className="font-medium text-accent hover:text-accent-deep" onClick={resend}>
-          Resend
-        </button>
-      </div>
-    </Card>
   );
 }
 
@@ -245,7 +113,7 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
     }
     setBusy(true);
     try {
-      await api.saveProfile(name.trim(), avatar);
+      await api.saveAccount(name.trim(), avatar);
       onNext();
     } catch (error) {
       toast(error instanceof ApiError ? error.message : "Couldn't save your profile.", "error");
@@ -293,14 +161,20 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 }
 
 function RoomStep({ onHome }: { onHome: () => void }) {
-  const [mode, setMode] = useState<"menu" | "join">("menu");
+  const [mode, setMode] = useState<"menu" | "create" | "join">("menu");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState<"create" | "join" | null>(null);
 
   const create = async () => {
+    const normalized = normalizeRoomCode(code);
+    const problem = roomCodeError(normalized);
+    if (problem) {
+      toast(problem, "error");
+      return;
+    }
     setBusy("create");
     try {
-      await api.createRoom();
+      await api.createRoom(normalized);
       onHome();
     } catch (error) {
       toast(error instanceof ApiError ? error.message : "Couldn't create the room.", "error");
@@ -309,19 +183,63 @@ function RoomStep({ onHome }: { onHome: () => void }) {
   };
 
   const join = async () => {
-    if (code.trim().length < 4) {
+    const normalized = normalizeRoomCode(code);
+    if (normalized.length < 4) {
       toast("That room code looks too short.", "error");
       return;
     }
     setBusy("join");
     try {
-      await api.joinRoom(code.trim());
+      await api.joinRoom(normalized);
       onHome();
     } catch (error) {
       toast(error instanceof ApiError ? error.message : "Couldn't join that room.", "error");
       setBusy(null);
     }
   };
+
+  if (mode === "create") {
+    return (
+      <Card className="flex flex-col gap-3 p-5">
+        <div className="text-center">
+          <p className="font-semibold">Name your room</p>
+          <p className="mt-1 text-xs text-faint">
+            Pick a secret word you&apos;ll both remember. They&apos;ll type it to join.
+          </p>
+        </div>
+        <TextInput
+          placeholder="SUNFLOWERS"
+          value={code}
+          autoFocus
+          maxLength={ROOM_CODE_MAX}
+          autoCapitalize="characters"
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => e.key === "Enter" && create()}
+          className="text-center font-mono text-lg uppercase tracking-[0.25em]"
+        />
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {CODE_SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setCode(s)}
+              className="rounded-full bg-paper px-3 py-1 text-xs font-medium text-soft transition-colors hover:bg-accent-soft hover:text-accent-deep"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        <Button size="lg" onClick={create} loading={busy === "create"}>
+          Create our room
+        </Button>
+        <button
+          className="py-1 text-sm font-medium text-faint transition-colors hover:text-soft"
+          onClick={() => setMode("menu")}
+        >
+          Back
+        </button>
+      </Card>
+    );
+  }
 
   if (mode === "join") {
     return (
@@ -331,11 +249,11 @@ function RoomStep({ onHome }: { onHome: () => void }) {
           placeholder="ROOM CODE"
           value={code}
           autoFocus
-          maxLength={8}
+          maxLength={ROOM_CODE_MAX}
           autoCapitalize="characters"
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           onKeyDown={(e) => e.key === "Enter" && join()}
-          className="text-center font-mono text-lg uppercase tracking-[0.3em]"
+          className="text-center font-mono text-lg uppercase tracking-[0.25em]"
         />
         <Button size="lg" onClick={join} loading={busy === "join"}>
           Join room
@@ -352,7 +270,7 @@ function RoomStep({ onHome }: { onHome: () => void }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Button size="lg" onClick={create} loading={busy === "create"}>
+      <Button size="lg" onClick={() => setMode("create")}>
         Create our room
       </Button>
       <Button size="lg" variant="outline" onClick={() => setMode("join")}>
@@ -366,7 +284,7 @@ function RoomStep({ onHome }: { onHome: () => void }) {
 }
 
 function Dots({ step }: { step: Step }) {
-  const order: Step[] = ["welcome", "email", "code", "profile", "room"];
+  const order: Step[] = ["welcome", "profile", "room"];
   const active = order.indexOf(step);
   return (
     <div className="flex items-center justify-center gap-1.5" aria-hidden>

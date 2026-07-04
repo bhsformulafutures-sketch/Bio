@@ -9,6 +9,7 @@ import { api, ApiError } from "@/lib/api";
 import { Avatar, Spinner } from "./ui";
 import { toast } from "./Toast";
 import { spring } from "@/lib/motion";
+import { normalizeRoomCode, roomCodeError, ROOM_CODE_MAX } from "@/lib/room-code";
 
 export function Logo({ className = "text-xl" }: { className?: string }) {
   return (
@@ -36,7 +37,7 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [rooms, setRooms] = useState<RoomSummaryDTO[] | null>(null);
-  const [joining, setJoining] = useState(false);
+  const [entry, setEntry] = useState<"none" | "join" | "create">("none");
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState<string | null>(null); // action in flight
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -46,7 +47,7 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
   useEffect(() => {
     if (!open) return;
     setRooms(null);
-    setJoining(false);
+    setEntry("none");
     setJoinCode("");
     setConfirmDelete(false);
     api
@@ -83,9 +84,15 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
   };
 
   const createRoom = async () => {
+    const code = normalizeRoomCode(joinCode);
+    const problem = roomCodeError(code);
+    if (problem) {
+      toast(problem, "error");
+      return;
+    }
     setBusy("create");
     try {
-      await api.createRoom();
+      await api.createRoom(code);
       goHome();
     } catch (error) {
       toast(error instanceof ApiError ? error.message : "Couldn't create a room.", "error");
@@ -94,7 +101,7 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
   };
 
   const joinRoom = async () => {
-    const code = joinCode.trim().toUpperCase();
+    const code = normalizeRoomCode(joinCode);
     if (code.length < 4) {
       toast("That room code looks too short.", "error");
       return;
@@ -215,35 +222,35 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
           )}
 
           <div className="border-t border-line/70 p-2">
-            {joining ? (
+            {entry !== "none" ? (
               <div className="flex items-center gap-2 p-1">
                 <input
                   autoFocus
                   value={joinCode}
-                  maxLength={8}
-                  placeholder="CODE"
+                  maxLength={ROOM_CODE_MAX}
+                  placeholder={entry === "create" ? "SUNFLOWERS" : "CODE"}
                   autoCapitalize="characters"
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && joinRoom()}
+                  onKeyDown={(e) => e.key === "Enter" && (entry === "create" ? createRoom() : joinRoom())}
                   className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-paper px-3
-                    text-center font-mono text-sm uppercase tracking-[0.3em] text-ink
+                    text-center font-mono text-sm uppercase tracking-[0.25em] text-ink
                     placeholder:tracking-normal placeholder:text-faint focus:border-accent focus:outline-none"
                 />
                 <button
-                  onClick={joinRoom}
+                  onClick={entry === "create" ? createRoom : joinRoom}
                   disabled={busy !== null}
                   className="flex h-10 items-center gap-1.5 rounded-xl bg-accent px-3.5 text-sm
                     font-semibold text-white transition-all hover:bg-accent-deep active:scale-95 disabled:opacity-60"
                 >
-                  {busy === "join" ? <Spinner className="size-4" /> : "Join"}
+                  {busy !== null ? <Spinner className="size-4" /> : entry === "create" ? "Create" : "Join"}
                 </button>
               </div>
             ) : (
               <>
-                <MenuItem onClick={createRoom} busy={busy === "create"} disabled={busy !== null}>
+                <MenuItem onClick={() => { setJoinCode(""); setEntry("create"); }} disabled={busy !== null}>
                   ➕ New room
                 </MenuItem>
-                <MenuItem onClick={() => setJoining(true)} disabled={busy !== null}>
+                <MenuItem onClick={() => { setJoinCode(""); setEntry("join"); }} disabled={busy !== null}>
                   🔑 Join with a code
                 </MenuItem>
                 <MenuItem onClick={copyCode} disabled={busy !== null}>

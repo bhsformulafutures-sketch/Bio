@@ -136,6 +136,22 @@ create table if not exists album_items (
 create index if not exists album_items_album_idx on album_items(album_id, added_at desc);
 
 -- ─────────────────────────────────────────────────────────────
+-- Browser push subscriptions, one row per browser a participant has
+-- enabled notifications on. Deleted when the participant (or room) goes.
+-- ─────────────────────────────────────────────────────────────
+create table if not exists push_subscriptions (
+  id             uuid primary key default gen_random_uuid(),
+  participant_id uuid not null references participants(id) on delete cascade,
+  endpoint       text not null unique,
+  p256dh         text not null,
+  auth           text not null,
+  created_at     timestamptz not null default now()
+);
+
+create index if not exists push_subscriptions_participant_idx
+  on push_subscriptions(participant_id);
+
+-- ─────────────────────────────────────────────────────────────
 -- The app talks to the database exclusively through server-side API
 -- routes using the service-role key, so row-level security stays on
 -- and locked down (no client ever holds a Supabase key).
@@ -148,6 +164,7 @@ alter table randoms enable row level security;
 alter table random_submissions enable row level security;
 alter table albums enable row level security;
 alter table album_items enable row level security;
+alter table push_subscriptions enable row level security;
 
 -- Storage: create a PUBLIC bucket named "photos"
 -- (Dashboard → Storage → New bucket → name: photos → Public).

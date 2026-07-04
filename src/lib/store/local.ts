@@ -13,6 +13,7 @@ import type {
   NewRandom,
   NewRandomSubmission,
   ParticipantRecord,
+  PushSubscriptionRecord,
   RandomRecord,
   RandomSubmissionRecord,
   RoomRecord,
@@ -29,6 +30,7 @@ interface Db {
   randomSubmissions: RandomSubmissionRecord[];
   albums: AlbumRecord[];
   albumItems: AlbumItemRecord[];
+  pushSubscriptions: PushSubscriptionRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -44,6 +46,7 @@ const EMPTY_DB: Db = {
   randomSubmissions: [],
   albums: [],
   albumItems: [],
+  pushSubscriptions: [],
 };
 
 /**
@@ -203,6 +206,12 @@ export class LocalStore implements Store {
   deleteRoom(roomId: string): Promise<void> {
     return this.locked(async () => {
       const db = await this.readDb();
+      const removedParticipants = db.participants
+        .filter((p) => p.roomId === roomId)
+        .map((p) => p.id);
+      db.pushSubscriptions = db.pushSubscriptions.filter(
+        (s) => !removedParticipants.includes(s.participantId)
+      );
       db.rooms = db.rooms.filter((r) => r.id !== roomId);
       db.participants = db.participants.filter((p) => p.roomId !== roomId);
       db.challenges = db.challenges.filter((c) => c.roomId !== roomId);
@@ -470,6 +479,46 @@ export class LocalStore implements Store {
       );
       const album = db.albums.find((a) => a.id === albumId);
       if (album) album.updatedAt = new Date().toISOString();
+      await this.writeDb(db);
+    });
+  }
+
+  // ── Push subscriptions ─────────────────────────────────────
+
+  savePushSubscription(
+    participantId: string,
+    sub: { endpoint: string; p256dh: string; auth: string }
+  ): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const existing = db.pushSubscriptions.find((s) => s.endpoint === sub.endpoint);
+      if (existing) {
+        existing.participantId = participantId;
+        existing.p256dh = sub.p256dh;
+        existing.auth = sub.auth;
+      } else {
+        db.pushSubscriptions.push({
+          id: randomUUID(),
+          participantId,
+          endpoint: sub.endpoint,
+          p256dh: sub.p256dh,
+          auth: sub.auth,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      await this.writeDb(db);
+    });
+  }
+
+  async listPushSubscriptions(participantId: string): Promise<PushSubscriptionRecord[]> {
+    const db = await this.readDb();
+    return db.pushSubscriptions.filter((s) => s.participantId === participantId);
+  }
+
+  deletePushSubscription(endpoint: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.pushSubscriptions = db.pushSubscriptions.filter((s) => s.endpoint !== endpoint);
       await this.writeDb(db);
     });
   }

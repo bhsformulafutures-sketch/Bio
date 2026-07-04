@@ -11,6 +11,7 @@ import type {
   NewRandom,
   NewRandomSubmission,
   ParticipantRecord,
+  PushSubscriptionRecord,
   RandomRecord,
   RandomSubmissionRecord,
   RoomRecord,
@@ -95,6 +96,24 @@ interface AlbumItemRow {
   memory_id: string;
   added_at: string;
 }
+
+interface PushSubscriptionRow {
+  id: string;
+  participant_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+}
+
+const mapPushSubscription = (s: PushSubscriptionRow): PushSubscriptionRecord => ({
+  id: s.id,
+  participantId: s.participant_id,
+  endpoint: s.endpoint,
+  p256dh: s.p256dh,
+  auth: s.auth,
+  createdAt: s.created_at,
+});
 
 const mapAlbum = (a: AlbumRow): AlbumRecord => ({
   id: a.id,
@@ -632,6 +651,41 @@ export class SupabaseStore implements Store {
       .from("albums")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", albumId);
+  }
+
+  // ── Push subscriptions ─────────────────────────────────────
+
+  async savePushSubscription(
+    participantId: string,
+    sub: { endpoint: string; p256dh: string; auth: string }
+  ): Promise<void> {
+    const { error } = await this.client.from("push_subscriptions").upsert(
+      {
+        participant_id: participantId,
+        endpoint: sub.endpoint,
+        p256dh: sub.p256dh,
+        auth: sub.auth,
+      },
+      { onConflict: "endpoint" }
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  async listPushSubscriptions(participantId: string): Promise<PushSubscriptionRecord[]> {
+    const { data, error } = await this.client
+      .from("push_subscriptions")
+      .select()
+      .eq("participant_id", participantId);
+    if (error) throw new Error(error.message);
+    return (data as PushSubscriptionRow[]).map(mapPushSubscription);
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    const { error } = await this.client
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", endpoint);
+    if (error) throw new Error(error.message);
   }
 
   // ── Files ──────────────────────────────────────────────────

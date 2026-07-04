@@ -10,6 +10,7 @@ import { Avatar, Button, Card, Skeleton } from "@/components/ui";
 import { GalleryCard, formatDate } from "@/components/GalleryCard";
 import { RandomCard } from "@/components/RandomCard";
 import { AlbumStrip } from "@/components/AlbumStrip";
+import { NotificationToggle } from "@/components/NotificationToggle";
 import { toast } from "@/components/Toast";
 import { Pressable } from "@/components/motion/Pressable";
 import { BlurImage } from "@/components/motion/BlurImage";
@@ -138,6 +139,10 @@ export default function HomePage() {
             <Button onClick={share}>Send invite 💌</Button>
           </Card>
         )}
+
+        <div className="animate-fade-up" style={{ animationDelay: nextDelay() }}>
+          <NotificationToggle />
+        </div>
 
         {/* Play together — the two mini-games */}
         <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>

@@ -96,6 +96,16 @@ export interface NewRandomSubmission {
   caption: string | null;
 }
 
+/** One browser's Web Push subscription, owned by a room participant. */
+export interface PushSubscriptionRecord {
+  id: string;
+  participantId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  createdAt: string;
+}
+
 /** A shared scrapbook album — a named collection of memories in a room. */
 export interface AlbumRecord {
   id: string;
@@ -187,6 +197,14 @@ export interface Store {
   albumIdsForMemory(roomId: string, kind: MemoryKind, memoryId: string): Promise<string[]>;
   addAlbumItem(albumId: string, kind: MemoryKind, memoryId: string): Promise<AlbumItemRecord>;
   removeAlbumItem(albumId: string, kind: MemoryKind, memoryId: string): Promise<void>;
+
+  // ── Push subscriptions ─────────────────────────────────────
+  savePushSubscription(
+    participantId: string,
+    sub: { endpoint: string; p256dh: string; auth: string }
+  ): Promise<void>;
+  listPushSubscriptions(participantId: string): Promise<PushSubscriptionRecord[]>;
+  deletePushSubscription(endpoint: string): Promise<void>;
 
   // ── Files ──────────────────────────────────────────────────
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;

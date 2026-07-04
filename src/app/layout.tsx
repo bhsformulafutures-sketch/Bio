@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "@/components/Toast";
 import { MotionProvider } from "@/components/motion/MotionProvider";
 import { AmbientBackground } from "@/components/motion/AmbientBackground";
+import { AmbientDelight } from "@/components/motion/AmbientDelight";
 
 export const metadata: Metadata = {
   title: "The Other Half",
@@ -26,6 +27,7 @@ export default function RootLayout({
       <body className="relative min-h-dvh">
         <MotionProvider>
           <AmbientBackground />
+          <AmbientDelight />
           <div className="relative z-10 min-h-dvh">{children}</div>
           <Toaster />
         </MotionProvider>

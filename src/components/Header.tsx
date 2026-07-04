@@ -9,6 +9,7 @@ import { api, ApiError } from "@/lib/api";
 import { Avatar, Spinner } from "./ui";
 import { toast } from "./Toast";
 import { spring } from "@/lib/motion";
+import { useAmbientGate } from "@/lib/ambient";
 import { normalizeRoomCode, roomCodeError, ROOM_CODE_MAX } from "@/lib/room-code";
 
 export function Logo({ className = "text-xl" }: { className?: string }) {
@@ -42,6 +43,8 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
   const [busy, setBusy] = useState<string | null>(null); // action in flight
   const [confirmDelete, setConfirmDelete] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  useAmbientGate(open);
 
   /* Load the room list lazily, each time the menu opens. */
   useEffect(() => {

@@ -167,7 +167,7 @@ export default function ChallengePage({
           <>
             <div className="animate-fade-up">
               <h1 className="font-display text-2xl font-bold">
-                {justRevealed ? "A new memory 💛" : "Memory"}
+                {justRevealed ? "A new memory" : "Memory"}
               </h1>
               <p className="mt-1 text-sm text-soft">
                 📸 {challenge.creator.name}
@@ -203,7 +203,7 @@ export default function ChallengePage({
         ) : challenge.mine ? (
           <>
             <div className="animate-fade-up">
-              <h1 className="font-display text-2xl font-bold">Waiting on {partnerName} ⌛</h1>
+              <h1 className="font-display text-2xl font-bold">Waiting on {partnerName}</h1>
               <p className="mt-1 text-sm text-soft">
                 Here&apos;s what they&apos;ll see. We&apos;ll flip this page the moment they finish.
               </p>
@@ -227,7 +227,7 @@ export default function ChallengePage({
           <>
             <div className="animate-fade-up">
               <h1 className="font-display text-2xl font-bold">
-                {challenge.creator.name} challenges you 🎨
+                {challenge.creator.name} challenges you
               </h1>
               <p className="mt-1 text-sm text-soft">
                 Draw — or snap a photo of — what you think is hiding in the{" "}

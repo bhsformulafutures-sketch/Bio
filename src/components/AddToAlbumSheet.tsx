@@ -7,6 +7,7 @@ import { api, ApiError } from "@/lib/api";
 import { Button, Spinner, TextInput } from "@/components/ui";
 import { toast } from "@/components/Toast";
 import { spring, tween } from "@/lib/motion";
+import { useAmbientGate } from "@/lib/ambient";
 
 /**
  * A bottom sheet for filing one memory into albums. Toggle existing albums or
@@ -30,6 +31,8 @@ export function AddToAlbumSheet({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+
+  useAmbientGate(open);
 
   useEffect(() => {
     if (!open) return;

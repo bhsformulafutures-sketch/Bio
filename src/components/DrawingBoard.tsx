@@ -11,6 +11,7 @@ import {
 } from "@/lib/image-client";
 import { Button, Card } from "./ui";
 import { toast } from "./Toast";
+import { pauseAmbient, resumeAmbient } from "@/lib/ambient";
 
 const COLORS = [
   "#221c15", "#ffffff", "#e5484d", "#f76b15", "#ffc53d",
@@ -152,6 +153,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     const p = toImagePoint(e);
     if (!inHiddenRegion(p)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    pauseAmbient();
     liveStrokeRef.current = {
       tool,
       color,
@@ -177,6 +179,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
   const onPointerUp = () => {
     const stroke = liveStrokeRef.current;
     if (!stroke) return;
+    resumeAmbient();
     liveStrokeRef.current = null;
     lastPointRef.current = null;
     commit([...actions(), stroke]);

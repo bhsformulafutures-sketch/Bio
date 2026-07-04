@@ -42,7 +42,7 @@ export function AlbumStrip({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Albums 📚</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Albums</h2>
         <button
           onClick={() => setComposing((v) => !v)}
           className="text-sm font-semibold text-accent-deep transition-colors hover:text-accent"

@@ -183,7 +183,7 @@ export default function HomePage() {
         {openRandom && (
           <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
-              Happening now 🎲
+              Happening now
             </h2>
             <Pressable>
             <Link
@@ -212,7 +212,7 @@ export default function HomePage() {
 
         {yourTurn.length > 0 && (
           <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
-            <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Your turn ✏️</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Your turn</h2>
             {yourTurn.map((c) => (
               <Pressable key={c.id}>
               <Link
@@ -245,7 +245,7 @@ export default function HomePage() {
         {waitingOnPartner.length > 0 && (
           <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
-              Waiting on {partnerName ?? "your partner"} ⌛
+              Waiting on {partnerName ?? "your partner"}
             </h2>
             {waitingOnPartner.map((c) => (
               <Link
@@ -276,7 +276,7 @@ export default function HomePage() {
         )}
 
         <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Memories 💛</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Memories</h2>
           {memories.length === 0 && doneRandoms.length === 0 ? (
             <div className="dotted flex flex-col items-center gap-3 rounded-3xl border border-line py-14 text-center">
               <span className="animate-float text-4xl">🌱</span>

@@ -1,4 +1,4 @@
-import type { ChallengeStatus, HiddenSide, RandomStatus } from "../types";
+import type { ChallengeStatus, HiddenSide, MemoryKind, RandomStatus } from "../types";
 
 export interface UserRecord {
   id: string;
@@ -104,6 +104,24 @@ export interface NewRandomSubmission {
   caption: string | null;
 }
 
+/** A shared scrapbook album — a named collection of memories in a room. */
+export interface AlbumRecord {
+  id: string;
+  roomId: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One memory (a challenge or a random) filed inside an album. */
+export interface AlbumItemRecord {
+  id: string;
+  albumId: string;
+  kind: MemoryKind;
+  memoryId: string;
+  addedAt: string;
+}
+
 /** Everything the app knows about the signed-in person and, if they're in
  *  one, the active room and their partner. */
 export interface SessionRecord {
@@ -164,6 +182,18 @@ export interface Store {
   listRandomSubmissions(randomId: string): Promise<RandomSubmissionRecord[]>;
   markRandomCompleted(id: string): Promise<void>;
   markRandomExpired(id: string): Promise<void>;
+
+  // ── Albums ─────────────────────────────────────────────────
+  createAlbum(roomId: string, name: string): Promise<AlbumRecord>;
+  listAlbums(roomId: string): Promise<AlbumRecord[]>;
+  getAlbum(id: string): Promise<AlbumRecord | null>;
+  renameAlbum(id: string, name: string): Promise<AlbumRecord>;
+  deleteAlbum(id: string): Promise<void>;
+  listAlbumItems(albumId: string): Promise<AlbumItemRecord[]>;
+  /** Which albums (ids) in a room already contain a given memory. */
+  albumIdsForMemory(roomId: string, kind: MemoryKind, memoryId: string): Promise<string[]>;
+  addAlbumItem(albumId: string, kind: MemoryKind, memoryId: string): Promise<AlbumItemRecord>;
+  removeAlbumItem(albumId: string, kind: MemoryKind, memoryId: string): Promise<void>;
 
   // ── Files ──────────────────────────────────────────────────
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;

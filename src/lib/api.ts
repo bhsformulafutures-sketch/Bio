@@ -1,6 +1,9 @@
 import type {
+  AlbumDetailDTO,
+  AlbumSummaryDTO,
   AuthStateDTO,
   ChallengeDTO,
+  MemoryKind,
   RandomDTO,
   RoomSummaryDTO,
   SessionDTO,
@@ -131,4 +134,35 @@ export const api = {
       body: form,
     });
   },
+
+  // ── Albums ─────────────────────────────────────────────────
+  listAlbums: () => request<{ albums: AlbumSummaryDTO[] }>("/api/albums"),
+
+  getAlbum: (id: string) => request<{ album: AlbumDetailDTO }>(`/api/albums/${id}`),
+
+  createAlbum: (name: string) =>
+    request<{ album: AlbumSummaryDTO }>("/api/albums", json({ name })),
+
+  renameAlbum: (id: string, name: string) =>
+    request<{ album: AlbumSummaryDTO }>(`/api/albums/${id}`, {
+      ...json({ name }),
+      method: "PATCH",
+    }),
+
+  deleteAlbum: (id: string) =>
+    request<{ ok: true }>(`/api/albums/${id}`, { method: "DELETE" }),
+
+  albumsForMemory: (kind: MemoryKind, memoryId: string) =>
+    request<{ albumIds: string[] }>(
+      `/api/albums/for-memory?kind=${kind}&id=${encodeURIComponent(memoryId)}`
+    ),
+
+  addToAlbum: (albumId: string, kind: MemoryKind, memoryId: string) =>
+    request<{ ok: true }>(`/api/albums/${albumId}/items`, json({ kind, memoryId })),
+
+  removeFromAlbum: (albumId: string, kind: MemoryKind, memoryId: string) =>
+    request<{ ok: true }>(`/api/albums/${albumId}/items`, {
+      ...json({ kind, memoryId }),
+      method: "DELETE",
+    }),
 };

@@ -1,4 +1,7 @@
 import type {
+  AlbumDetailDTO,
+  AlbumMemoryDTO,
+  AlbumSummaryDTO,
   ChallengeDTO,
   RandomDTO,
   RandomSubmissionDTO,
@@ -7,6 +10,8 @@ import type {
 } from "./types";
 import { getStore } from "./store";
 import type {
+  AlbumItemRecord,
+  AlbumRecord,
   ChallengeRecord,
   RandomRecord,
   RandomSubmissionRecord,
@@ -146,4 +151,106 @@ export function randomToDTO(
     partnerSubmitted,
     submissions: visible,
   };
+}
+
+/** Cover image for a memory DTO — mirrors the gallery cards' preview logic. */
+type Cover = { url: string; width: number | null; height: number | null };
+
+function challengeCover(c: ChallengeDTO): Cover {
+  return { url: c.mergedUrl ?? c.visibleUrl, width: c.width, height: c.height };
+}
+function randomCover(r: RandomDTO): Cover | null {
+  const first = r.submissions[0];
+  if (!first) return null;
+  return { url: first.photoUrl, width: first.width, height: first.height };
+}
+
+/**
+ * Compose album DTOs. The caller resolves the room's memories once and passes
+ * them in as lookup maps, so listing many albums stays a single pass.
+ */
+export function albumSummaryToDTO(
+  album: AlbumRecord,
+  items: AlbumItemRecord[],
+  challengeById: Map<string, ChallengeDTO>,
+  randomById: Map<string, RandomDTO>
+): AlbumSummaryDTO {
+  // Items arrive newest-first; the cover is the newest one that still resolves.
+  let cover: Cover | null = null;
+  let count = 0;
+  for (const item of items) {
+    const resolved =
+      item.kind === "challenge"
+        ? challengeById.get(item.memoryId)
+          ? challengeCover(challengeById.get(item.memoryId)!)
+          : null
+        : randomById.get(item.memoryId)
+          ? randomCover(randomById.get(item.memoryId)!)
+          : null;
+    if (item.kind === "challenge" ? challengeById.has(item.memoryId) : randomById.has(item.memoryId)) {
+      count++;
+      if (!cover && resolved) cover = resolved;
+    }
+  }
+  return {
+    id: album.id,
+    name: album.name,
+    count,
+    coverUrl: cover?.url ?? null,
+    coverWidth: cover?.width ?? null,
+    coverHeight: cover?.height ?? null,
+    createdAt: album.createdAt,
+    updatedAt: album.updatedAt,
+  };
+}
+
+/**
+ * Resolve every finished memory in the viewer's room into lookup maps keyed by
+ * id — completed challenges and settled randoms only (those are what can be
+ * filed into an album). Album composition builds on these.
+ */
+export async function loadRoomMemoryMaps(
+  session: SessionRecord
+): Promise<{ challengeById: Map<string, ChallengeDTO>; randomById: Map<string, RandomDTO> }> {
+  const store = getStore();
+  const [challenges, randoms] = await Promise.all([
+    store.listChallenges(session.room.id),
+    store.listRandoms(session.room.id),
+  ]);
+  const challengeById = new Map<string, ChallengeDTO>();
+  for (const c of challenges) {
+    if (c.status === "completed") challengeById.set(c.id, challengeToDTO(c, session));
+  }
+  const randomById = new Map<string, RandomDTO>();
+  await Promise.all(
+    randoms
+      .filter((r) => r.status !== "open")
+      .map(async (r) => {
+        const subs = await store.listRandomSubmissions(r.id);
+        randomById.set(r.id, randomToDTO(r, subs, session));
+      })
+  );
+  return { challengeById, randomById };
+}
+
+export function albumDetailToDTO(
+  album: AlbumRecord,
+  items: AlbumItemRecord[],
+  challengeById: Map<string, ChallengeDTO>,
+  randomById: Map<string, RandomDTO>
+): AlbumDetailDTO {
+  const summary = albumSummaryToDTO(album, items, challengeById, randomById);
+  const memories: AlbumMemoryDTO[] = [];
+  for (const item of items) {
+    if (item.kind === "challenge") {
+      const challenge = challengeById.get(item.memoryId);
+      if (challenge)
+        memories.push({ kind: "challenge", id: item.memoryId, addedAt: item.addedAt, challenge, random: null });
+    } else {
+      const random = randomById.get(item.memoryId);
+      if (random)
+        memories.push({ kind: "random", id: item.memoryId, addedAt: item.addedAt, challenge: null, random });
+    }
+  }
+  return { ...summary, memories };
 }

@@ -14,6 +14,7 @@ import { ResultView } from "@/components/ResultView";
 import { formatDate } from "@/components/GalleryCard";
 import { toast } from "@/components/Toast";
 import { BlurImage } from "@/components/motion/BlurImage";
+import { AddToAlbumSheet } from "@/components/AddToAlbumSheet";
 
 const WAITING_POLL_MS = 10_000;
 
@@ -30,6 +31,7 @@ export default function ChallengePage({
   const [submitting, setSubmitting] = useState(false);
   const [revealing, setRevealing] = useState<string | null>(null); // drawing src during reveal
   const [justRevealed, setJustRevealed] = useState(false);
+  const [albumSheet, setAlbumSheet] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -176,13 +178,27 @@ export default function ChallengePage({
             <div className="animate-fade-up" style={{ animationDelay: "80ms" }}>
               <ResultView challenge={challenge} nudge={justRevealed} />
             </div>
-            {justRevealed && (
-              <Link href="/home" className="animate-fade-up" style={{ animationDelay: "160ms" }}>
-                <Button variant="soft" className="w-full">
-                  Saved to your gallery — back home
-                </Button>
-              </Link>
-            )}
+            <div
+              className="animate-fade-up flex flex-col gap-2 sm:flex-row"
+              style={{ animationDelay: "160ms" }}
+            >
+              <Button variant="outline" className="flex-1" onClick={() => setAlbumSheet(true)}>
+                📚 Add to album
+              </Button>
+              {justRevealed && (
+                <Link href="/home" className="flex-1">
+                  <Button variant="soft" className="w-full">
+                    Back home
+                  </Button>
+                </Link>
+              )}
+            </div>
+            <AddToAlbumSheet
+              kind="challenge"
+              memoryId={challenge.id}
+              open={albumSheet}
+              onClose={() => setAlbumSheet(false)}
+            />
           </>
         ) : challenge.mine ? (
           <>

@@ -2,7 +2,10 @@ import { promises as fs } from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
 import { newRoomCode, newToken } from "../id";
+import type { MemoryKind } from "../types";
 import type {
+  AlbumItemRecord,
+  AlbumRecord,
   ChallengeRecord,
   JoinResult,
   NewChallenge,
@@ -25,6 +28,8 @@ interface Db {
   challenges: ChallengeRecord[];
   randoms: RandomRecord[];
   randomSubmissions: RandomSubmissionRecord[];
+  albums: AlbumRecord[];
+  albumItems: AlbumItemRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -39,6 +44,8 @@ const EMPTY_DB: Db = {
   challenges: [],
   randoms: [],
   randomSubmissions: [],
+  albums: [],
+  albumItems: [],
 };
 
 /**
@@ -249,6 +256,9 @@ export class LocalStore implements Store {
       db.randomSubmissions = db.randomSubmissions.filter(
         (s) => !removedRandoms.includes(s.randomId)
       );
+      const removedAlbums = db.albums.filter((a) => a.roomId === roomId).map((a) => a.id);
+      db.albums = db.albums.filter((a) => a.roomId !== roomId);
+      db.albumItems = db.albumItems.filter((i) => !removedAlbums.includes(i.albumId));
       await this.writeDb(db);
       await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
         recursive: true,
@@ -396,6 +406,116 @@ export class LocalStore implements Store {
         random.status = "expired";
         await this.writeDb(db);
       }
+    });
+  }
+
+  // ── Albums ─────────────────────────────────────────────────
+
+  createAlbum(roomId: string, name: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const now = new Date().toISOString();
+      const album: AlbumRecord = {
+        id: randomUUID(),
+        roomId,
+        name,
+        createdAt: now,
+        updatedAt: now,
+      };
+      db.albums.push(album);
+      await this.writeDb(db);
+      return album;
+    });
+  }
+
+  async listAlbums(roomId: string): Promise<AlbumRecord[]> {
+    const db = await this.readDb();
+    return db.albums
+      .filter((a) => a.roomId === roomId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async getAlbum(id: string): Promise<AlbumRecord | null> {
+    const db = await this.readDb();
+    return db.albums.find((a) => a.id === id) ?? null;
+  }
+
+  renameAlbum(id: string, name: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const album = db.albums.find((a) => a.id === id);
+      if (!album) throw new Error("Album not found");
+      album.name = name;
+      album.updatedAt = new Date().toISOString();
+      await this.writeDb(db);
+      return album;
+    });
+  }
+
+  deleteAlbum(id: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.albums = db.albums.filter((a) => a.id !== id);
+      db.albumItems = db.albumItems.filter((i) => i.albumId !== id);
+      await this.writeDb(db);
+    });
+  }
+
+  async listAlbumItems(albumId: string): Promise<AlbumItemRecord[]> {
+    const db = await this.readDb();
+    return db.albumItems
+      .filter((i) => i.albumId === albumId)
+      .sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+  }
+
+  async albumIdsForMemory(
+    roomId: string,
+    kind: MemoryKind,
+    memoryId: string
+  ): Promise<string[]> {
+    const db = await this.readDb();
+    const roomAlbumIds = new Set(
+      db.albums.filter((a) => a.roomId === roomId).map((a) => a.id)
+    );
+    return db.albumItems
+      .filter(
+        (i) =>
+          roomAlbumIds.has(i.albumId) && i.kind === kind && i.memoryId === memoryId
+      )
+      .map((i) => i.albumId);
+  }
+
+  addAlbumItem(albumId: string, kind: MemoryKind, memoryId: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const existing = db.albumItems.find(
+        (i) => i.albumId === albumId && i.kind === kind && i.memoryId === memoryId
+      );
+      if (existing) return existing;
+      const item: AlbumItemRecord = {
+        id: randomUUID(),
+        albumId,
+        kind,
+        memoryId,
+        addedAt: new Date().toISOString(),
+      };
+      db.albumItems.push(item);
+      const album = db.albums.find((a) => a.id === albumId);
+      if (album) album.updatedAt = item.addedAt;
+      await this.writeDb(db);
+      return item;
+    });
+  }
+
+  removeAlbumItem(albumId: string, kind: MemoryKind, memoryId: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.albumItems = db.albumItems.filter(
+        (i) => !(i.albumId === albumId && i.kind === kind && i.memoryId === memoryId)
+      );
+      const album = db.albums.find((a) => a.id === albumId);
+      if (album) album.updatedAt = new Date().toISOString();
+      await this.writeDb(db);
     });
   }
 

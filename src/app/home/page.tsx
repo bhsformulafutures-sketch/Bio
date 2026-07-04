@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ChallengeDTO, RandomDTO, SessionDTO } from "@/lib/types";
+import type { AlbumSummaryDTO, ChallengeDTO, RandomDTO, SessionDTO } from "@/lib/types";
 import { api, ApiError } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { Avatar, Button, Card, Skeleton } from "@/components/ui";
 import { GalleryCard, formatDate } from "@/components/GalleryCard";
 import { RandomCard } from "@/components/RandomCard";
+import { AlbumStrip } from "@/components/AlbumStrip";
 import { toast } from "@/components/Toast";
 import { Pressable } from "@/components/motion/Pressable";
 import { BlurImage } from "@/components/motion/BlurImage";
@@ -20,18 +21,21 @@ export default function HomePage() {
   const [session, setSession] = useState<SessionDTO | null>(null);
   const [challenges, setChallenges] = useState<ChallengeDTO[] | null>(null);
   const [randoms, setRandoms] = useState<RandomDTO[] | null>(null);
+  const [albums, setAlbums] = useState<AlbumSummaryDTO[] | null>(null);
   const [starting, setStarting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [me, list, rand] = await Promise.all([
+      const [me, list, rand, alb] = await Promise.all([
         api.me(),
         api.listChallenges(),
         api.listRandoms(),
+        api.listAlbums(),
       ]);
       setSession(me);
       setChallenges(list.challenges);
       setRandoms(rand.randoms);
+      setAlbums(alb.albums);
     } catch (error) {
       if ((error as { status?: number }).status === 401) router.replace("/");
     }
@@ -48,7 +52,7 @@ export default function HomePage() {
     };
   }, [refresh]);
 
-  if (!session || !challenges || !randoms) {
+  if (!session || !challenges || !randoms || !albums) {
     return (
       <div className="min-h-dvh">
         <Header session={session} />
@@ -258,6 +262,12 @@ export default function HomePage() {
               </Link>
             ))}
           </section>
+        )}
+
+        {(totalMoments > 0 || albums.length > 0) && (
+          <div className="animate-fade-up" style={{ animationDelay: nextDelay() }}>
+            <AlbumStrip albums={albums} onCreated={refresh} />
+          </div>
         )}
 
         <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>

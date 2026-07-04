@@ -1,6 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { newRoomCode, newToken } from "../id";
+import type { MemoryKind } from "../types";
 import type {
+  AlbumItemRecord,
+  AlbumRecord,
   ChallengeRecord,
   JoinResult,
   NewChallenge,
@@ -85,6 +88,37 @@ interface RandomSubmissionRow {
   caption: string | null;
   created_at: string;
 }
+
+interface AlbumRow {
+  id: string;
+  room_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+interface AlbumItemRow {
+  id: string;
+  album_id: string;
+  kind: MemoryKind;
+  memory_id: string;
+  added_at: string;
+}
+
+const mapAlbum = (a: AlbumRow): AlbumRecord => ({
+  id: a.id,
+  roomId: a.room_id,
+  name: a.name,
+  createdAt: a.created_at,
+  updatedAt: a.updated_at,
+});
+
+const mapAlbumItem = (i: AlbumItemRow): AlbumItemRecord => ({
+  id: i.id,
+  albumId: i.album_id,
+  kind: i.kind,
+  memoryId: i.memory_id,
+  addedAt: i.added_at,
+});
 
 const mapUser = (u: UserRow): UserRecord => ({
   id: u.id,
@@ -545,6 +579,120 @@ export class SupabaseStore implements Store {
       .eq("id", id)
       .eq("status", "open");
     if (error) throw new Error(error.message);
+  }
+
+  // ── Albums ─────────────────────────────────────────────────
+
+  async createAlbum(roomId: string, name: string): Promise<AlbumRecord> {
+    const { data, error } = await this.client
+      .from("albums")
+      .insert({ room_id: roomId, name })
+      .select()
+      .single<AlbumRow>();
+    if (error) throw new Error(error.message);
+    return mapAlbum(data);
+  }
+
+  async listAlbums(roomId: string): Promise<AlbumRecord[]> {
+    const { data, error } = await this.client
+      .from("albums")
+      .select()
+      .eq("room_id", roomId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as AlbumRow[]).map(mapAlbum);
+  }
+
+  async getAlbum(id: string): Promise<AlbumRecord | null> {
+    const { data, error } = await this.client
+      .from("albums")
+      .select()
+      .eq("id", id)
+      .maybeSingle<AlbumRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapAlbum(data) : null;
+  }
+
+  async renameAlbum(id: string, name: string): Promise<AlbumRecord> {
+    const { data, error } = await this.client
+      .from("albums")
+      .update({ name, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single<AlbumRow>();
+    if (error) throw new Error(error.message);
+    return mapAlbum(data);
+  }
+
+  async deleteAlbum(id: string): Promise<void> {
+    // album_items cascade via FK.
+    const { error } = await this.client.from("albums").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async listAlbumItems(albumId: string): Promise<AlbumItemRecord[]> {
+    const { data, error } = await this.client
+      .from("album_items")
+      .select()
+      .eq("album_id", albumId)
+      .order("added_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as AlbumItemRow[]).map(mapAlbumItem);
+  }
+
+  async albumIdsForMemory(
+    roomId: string,
+    kind: MemoryKind,
+    memoryId: string
+  ): Promise<string[]> {
+    const { data, error } = await this.client
+      .from("album_items")
+      .select("album_id, albums!inner(room_id)")
+      .eq("kind", kind)
+      .eq("memory_id", memoryId)
+      .eq("albums.room_id", roomId);
+    if (error) throw new Error(error.message);
+    return ((data as { album_id: string }[]) ?? []).map((r) => r.album_id);
+  }
+
+  async addAlbumItem(
+    albumId: string,
+    kind: MemoryKind,
+    memoryId: string
+  ): Promise<AlbumItemRecord> {
+    const { data, error } = await this.client
+      .from("album_items")
+      .upsert(
+        { album_id: albumId, kind, memory_id: memoryId },
+        { onConflict: "album_id,kind,memory_id" }
+      )
+      .select()
+      .single<AlbumItemRow>();
+    if (error) throw new Error(error.message);
+    await this.touchAlbum(albumId);
+    return mapAlbumItem(data);
+  }
+
+  async removeAlbumItem(
+    albumId: string,
+    kind: MemoryKind,
+    memoryId: string
+  ): Promise<void> {
+    const { error } = await this.client
+      .from("album_items")
+      .delete()
+      .eq("album_id", albumId)
+      .eq("kind", kind)
+      .eq("memory_id", memoryId);
+    if (error) throw new Error(error.message);
+    await this.touchAlbum(albumId);
+  }
+
+  private async touchAlbum(albumId: string): Promise<void> {
+    await this.client
+      .from("albums")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", albumId);
   }
 
   // ── Files ──────────────────────────────────────────────────

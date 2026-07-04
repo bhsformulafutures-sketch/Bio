@@ -1,6 +1,8 @@
 export type HiddenSide = "left" | "right" | "top" | "bottom";
 export type ChallengeStatus = "waiting" | "completed";
 export type RandomStatus = "open" | "completed" | "expired";
+/** A memory is one finished game — either an Other Half or a Random Challenge. */
+export type MemoryKind = "challenge" | "random";
 
 /** The signed-in person's profile (no email leaves the server in full). */
 export interface UserDTO {
@@ -90,6 +92,35 @@ export interface RoomSummaryDTO {
   myName: string;
   partnerName: string | null;
   active: boolean;
+}
+
+/** A shared album as shown in the strip on the home screen. */
+export interface AlbumSummaryDTO {
+  id: string;
+  name: string;
+  /** How many memories are filed inside. */
+  count: number;
+  /** Preview image of the most-recent memory, or null when empty. */
+  coverUrl: string | null;
+  /** Aspect ratio of the cover (falls back to 4/3 when unknown). */
+  coverWidth: number | null;
+  coverHeight: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One memory inside an album — carries whichever game DTO it wraps. */
+export interface AlbumMemoryDTO {
+  kind: MemoryKind;
+  id: string;
+  addedAt: string;
+  challenge: ChallengeDTO | null;
+  random: RandomDTO | null;
+}
+
+/** Full album view: its meta plus every memory inside, newest first. */
+export interface AlbumDetailDTO extends AlbumSummaryDTO {
+  memories: AlbumMemoryDTO[];
 }
 
 /** One person's photo answer to a Random Challenge. */

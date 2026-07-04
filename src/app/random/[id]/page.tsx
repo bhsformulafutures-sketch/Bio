@@ -12,6 +12,7 @@ import { Avatar, Badge, Button, Card, Skeleton, Spinner, TextInput } from "@/com
 import { Countdown } from "@/components/Countdown";
 import { toast } from "@/components/Toast";
 import { BlurImage } from "@/components/motion/BlurImage";
+import { AddToAlbumSheet } from "@/components/AddToAlbumSheet";
 
 const POLL_MS = 8_000;
 
@@ -31,6 +32,7 @@ export default function RandomChallengePage({
   const [caption, setCaption] = useState("");
   const [sending, setSending] = useState(false);
   const [justRevealed, setJustRevealed] = useState(false);
+  const [albumSheet, setAlbumSheet] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -205,13 +207,24 @@ export default function RandomChallengePage({
                 </figure>
               ))}
             </div>
-            {justRevealed && (
-              <Link href="/home">
-                <Button variant="soft" className="w-full">
-                  Saved to your memories — back home
-                </Button>
-              </Link>
-            )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" className="flex-1" onClick={() => setAlbumSheet(true)}>
+                📚 Add to album
+              </Button>
+              {justRevealed && (
+                <Link href="/home" className="flex-1">
+                  <Button variant="soft" className="w-full">
+                    Back home
+                  </Button>
+                </Link>
+              )}
+            </div>
+            <AddToAlbumSheet
+              kind="random"
+              memoryId={random.id}
+              open={albumSheet}
+              onClose={() => setAlbumSheet(false)}
+            />
           </section>
         )}
 

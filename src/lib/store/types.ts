@@ -104,6 +104,24 @@ export interface NewRandomSubmission {
   caption: string | null;
 }
 
+/** A completed moment can be either kind of game. */
+export type MemoryKind = "challenge" | "random";
+
+export interface AlbumRecord {
+  id: string;
+  roomId: string;
+  name: string;
+  createdAt: string;
+}
+
+/** One memory's membership in one album. */
+export interface AlbumItemRecord {
+  albumId: string;
+  kind: MemoryKind;
+  itemId: string;
+  addedAt: string;
+}
+
 /** Everything the app knows about the signed-in person and, if they're in
  *  one, the active room and their partner. */
 export interface SessionRecord {
@@ -164,6 +182,18 @@ export interface Store {
   listRandomSubmissions(randomId: string): Promise<RandomSubmissionRecord[]>;
   markRandomCompleted(id: string): Promise<void>;
   markRandomExpired(id: string): Promise<void>;
+
+  // ── Albums ─────────────────────────────────────────────────
+  listAlbums(roomId: string): Promise<AlbumRecord[]>;
+  getAlbum(id: string): Promise<AlbumRecord | null>;
+  createAlbum(roomId: string, name: string): Promise<AlbumRecord>;
+  renameAlbum(id: string, name: string): Promise<AlbumRecord | null>;
+  deleteAlbum(id: string): Promise<void>;
+  listAlbumItems(albumId: string): Promise<AlbumItemRecord[]>;
+  /** Every album-membership row in a room, for computing covers & badges. */
+  listAlbumItemsForRoom(roomId: string): Promise<AlbumItemRecord[]>;
+  addAlbumItem(albumId: string, kind: MemoryKind, itemId: string): Promise<void>;
+  removeAlbumItem(albumId: string, kind: MemoryKind, itemId: string): Promise<void>;
 
   // ── Files ──────────────────────────────────────────────────
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;

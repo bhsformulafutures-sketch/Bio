@@ -12,6 +12,7 @@ import { RandomCard } from "@/components/RandomCard";
 import { toast } from "@/components/Toast";
 import { Pressable } from "@/components/motion/Pressable";
 import { BlurImage } from "@/components/motion/BlurImage";
+import { AlbumStrip } from "@/components/AlbumStrip";
 
 const POLL_MS = 12_000;
 
@@ -258,6 +259,12 @@ export default function HomePage() {
               </Link>
             ))}
           </section>
+        )}
+
+        {(memories.length > 0 || doneRandoms.length > 0) && (
+          <div className="animate-fade-up" style={{ animationDelay: nextDelay() }}>
+            <AlbumStrip />
+          </div>
         )}
 
         <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>

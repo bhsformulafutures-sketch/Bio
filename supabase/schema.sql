@@ -120,6 +120,28 @@ create table if not exists random_submissions (
 create index if not exists random_submissions_random_idx on random_submissions(random_id);
 
 -- ─────────────────────────────────────────────────────────────
+-- Albums — shared scrapbook collections of memories (either game).
+-- ─────────────────────────────────────────────────────────────
+create table if not exists albums (
+  id         uuid primary key default gen_random_uuid(),
+  room_id    uuid not null references rooms(id) on delete cascade,
+  name       text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists albums_room_idx on albums(room_id, created_at desc);
+
+create table if not exists album_items (
+  album_id uuid not null references albums(id) on delete cascade,
+  kind     text not null check (kind in ('challenge', 'random')),
+  item_id  uuid not null,
+  added_at timestamptz not null default now(),
+  primary key (album_id, kind, item_id)
+);
+
+create index if not exists album_items_album_idx on album_items(album_id, added_at desc);
+
+-- ─────────────────────────────────────────────────────────────
 -- The app talks to the database exclusively through server-side API
 -- routes using the service-role key, so row-level security stays on
 -- and locked down (no client ever holds a Supabase key).
@@ -131,6 +153,8 @@ alter table participants enable row level security;
 alter table challenges enable row level security;
 alter table randoms enable row level security;
 alter table random_submissions enable row level security;
+alter table albums enable row level security;
+alter table album_items enable row level security;
 
 -- Storage: create a PUBLIC bucket named "photos"
 -- (Dashboard → Storage → New bucket → name: photos → Public).

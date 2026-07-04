@@ -3,8 +3,11 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { newRoomCode, newToken } from "../id";
 import type {
+  AlbumItemRecord,
+  AlbumRecord,
   ChallengeRecord,
   JoinResult,
+  MemoryKind,
   NewChallenge,
   NewRandom,
   NewRandomSubmission,
@@ -25,6 +28,8 @@ interface Db {
   challenges: ChallengeRecord[];
   randoms: RandomRecord[];
   randomSubmissions: RandomSubmissionRecord[];
+  albums: AlbumRecord[];
+  albumItems: AlbumItemRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -39,6 +44,8 @@ const EMPTY_DB: Db = {
   challenges: [],
   randoms: [],
   randomSubmissions: [],
+  albums: [],
+  albumItems: [],
 };
 
 /**
@@ -249,6 +256,9 @@ export class LocalStore implements Store {
       db.randomSubmissions = db.randomSubmissions.filter(
         (s) => !removedRandoms.includes(s.randomId)
       );
+      const removedAlbums = db.albums.filter((a) => a.roomId === roomId).map((a) => a.id);
+      db.albums = db.albums.filter((a) => a.roomId !== roomId);
+      db.albumItems = db.albumItems.filter((i) => !removedAlbums.includes(i.albumId));
       await this.writeDb(db);
       await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
         recursive: true,
@@ -396,6 +406,98 @@ export class LocalStore implements Store {
         random.status = "expired";
         await this.writeDb(db);
       }
+    });
+  }
+
+  // ── Albums ─────────────────────────────────────────────────
+
+  async listAlbums(roomId: string): Promise<AlbumRecord[]> {
+    const db = await this.readDb();
+    return db.albums
+      .filter((a) => a.roomId === roomId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getAlbum(id: string): Promise<AlbumRecord | null> {
+    const db = await this.readDb();
+    return db.albums.find((a) => a.id === id) ?? null;
+  }
+
+  createAlbum(roomId: string, name: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const album: AlbumRecord = {
+        id: randomUUID(),
+        roomId,
+        name,
+        createdAt: new Date().toISOString(),
+      };
+      db.albums.push(album);
+      await this.writeDb(db);
+      return album;
+    });
+  }
+
+  renameAlbum(id: string, name: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const album = db.albums.find((a) => a.id === id);
+      if (!album) return null;
+      album.name = name;
+      await this.writeDb(db);
+      return album;
+    });
+  }
+
+  deleteAlbum(id: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.albums = db.albums.filter((a) => a.id !== id);
+      db.albumItems = db.albumItems.filter((i) => i.albumId !== id);
+      await this.writeDb(db);
+    });
+  }
+
+  async listAlbumItems(albumId: string): Promise<AlbumItemRecord[]> {
+    const db = await this.readDb();
+    return db.albumItems
+      .filter((i) => i.albumId === albumId)
+      .sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+  }
+
+  async listAlbumItemsForRoom(roomId: string): Promise<AlbumItemRecord[]> {
+    const db = await this.readDb();
+    const albumIds = new Set(
+      db.albums.filter((a) => a.roomId === roomId).map((a) => a.id)
+    );
+    return db.albumItems.filter((i) => albumIds.has(i.albumId));
+  }
+
+  addAlbumItem(albumId: string, kind: MemoryKind, itemId: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const exists = db.albumItems.some(
+        (i) => i.albumId === albumId && i.kind === kind && i.itemId === itemId
+      );
+      if (!exists) {
+        db.albumItems.push({
+          albumId,
+          kind,
+          itemId,
+          addedAt: new Date().toISOString(),
+        });
+        await this.writeDb(db);
+      }
+    });
+  }
+
+  removeAlbumItem(albumId: string, kind: MemoryKind, itemId: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.albumItems = db.albumItems.filter(
+        (i) => !(i.albumId === albumId && i.kind === kind && i.itemId === itemId)
+      );
+      await this.writeDb(db);
     });
   }
 

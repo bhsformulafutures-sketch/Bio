@@ -1,4 +1,5 @@
 import type {
+  AlbumDTO,
   AuthStateDTO,
   ChallengeDTO,
   RandomDTO,
@@ -6,6 +7,8 @@ import type {
   SessionDTO,
   UserDTO,
 } from "./types";
+
+type MemoryKind = "challenge" | "random";
 
 export class ApiError extends Error {
   status: number;
@@ -112,6 +115,34 @@ export const api = {
       { method: "POST", body: form }
     );
   },
+
+  // ── Albums ─────────────────────────────────────────────────
+  listAlbums: () => request<{ albums: AlbumDTO[] }>("/api/albums"),
+
+  getAlbum: (id: string) => request<{ album: AlbumDTO }>(`/api/albums/${id}`),
+
+  createAlbum: (name: string) =>
+    request<{ album: AlbumDTO }>("/api/albums", json({ name })),
+
+  renameAlbum: (id: string, name: string) =>
+    request<{ album: AlbumDTO }>(`/api/albums/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteAlbum: (id: string) =>
+    request<{ ok: true }>(`/api/albums/${id}`, { method: "DELETE" }),
+
+  addToAlbum: (albumId: string, kind: MemoryKind, itemId: string) =>
+    request<{ ok: true }>(`/api/albums/${albumId}/items`, json({ kind, itemId })),
+
+  removeFromAlbum: (albumId: string, kind: MemoryKind, itemId: string) =>
+    request<{ ok: true }>(`/api/albums/${albumId}/items`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, itemId }),
+    }),
 
   // ── Game 2 · Random Challenge ──────────────────────────────
   listRandoms: () => request<{ randoms: RandomDTO[] }>("/api/randoms"),

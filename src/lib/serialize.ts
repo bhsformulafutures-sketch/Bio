@@ -1,4 +1,5 @@
 import type {
+  AlbumDTO,
   ChallengeDTO,
   RandomDTO,
   RandomSubmissionDTO,
@@ -7,13 +8,21 @@ import type {
 } from "./types";
 import { getStore } from "./store";
 import type {
+  AlbumItemRecord,
+  AlbumRecord,
   ChallengeRecord,
+  MemoryKind,
   RandomRecord,
   RandomSubmissionRecord,
   SessionRecord,
   UserRecord,
 } from "./store/types";
 import { emailHint } from "./auth/email";
+
+/** Stable key for a memory across the two game types. */
+export function memoryKey(kind: MemoryKind, id: string): string {
+  return `${kind}:${id}`;
+}
 
 export function userToDTO(user: UserRecord): UserDTO {
   return {
@@ -145,5 +154,86 @@ export function randomToDTO(
     mineSubmitted,
     partnerSubmitted,
     submissions: visible,
+  };
+}
+
+/**
+ * Compose the album cards for a room: name, memory count, and an auto cover
+ * (the most-recently-added memory that resolves to an image). Loads the room's
+ * memories once and only fetches submissions for the covers it actually needs.
+ */
+export async function albumsToDTO(roomId: string): Promise<AlbumDTO[]> {
+  const store = getStore();
+  const [albums, items, challenges, randoms] = await Promise.all([
+    store.listAlbums(roomId),
+    store.listAlbumItemsForRoom(roomId),
+    store.listChallenges(roomId),
+    store.listRandoms(roomId),
+  ]);
+
+  const challengeById = new Map(challenges.map((c) => [c.id, c]));
+  const randomById = new Map(randoms.map((r) => [r.id, r]));
+
+  // Group memberships by album, newest first.
+  const byAlbum = new Map<string, AlbumItemRecord[]>();
+  for (const it of items) {
+    const list = byAlbum.get(it.albumId) ?? [];
+    list.push(it);
+    byAlbum.set(it.albumId, list);
+  }
+  for (const list of byAlbum.values()) {
+    list.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+  }
+
+  const coverFor = async (list: AlbumItemRecord[]): Promise<string | null> => {
+    for (const it of list) {
+      if (it.kind === "challenge") {
+        const c = challengeById.get(it.itemId);
+        if (c && c.status === "completed") {
+          return store.fileUrl(c.mergedPath ?? c.visiblePath);
+        }
+      } else {
+        const r = randomById.get(it.itemId);
+        if (r) {
+          const subs = await store.listRandomSubmissions(r.id);
+          if (subs[0]) return store.fileUrl(subs[0].photoPath);
+        }
+      }
+    }
+    return null;
+  };
+
+  return Promise.all(
+    albums.map(async (album): Promise<AlbumDTO> => {
+      const list = byAlbum.get(album.id) ?? [];
+      return {
+        id: album.id,
+        name: album.name,
+        count: list.length,
+        coverUrl: await coverFor(list),
+        createdAt: album.createdAt,
+        itemKeys: list.map((it) => memoryKey(it.kind, it.itemId)),
+      };
+    })
+  );
+}
+
+/** Validate & normalise an album name (used by create/rename). */
+export function normalizeAlbumName(raw: unknown): string {
+  return String(raw ?? "").trim().slice(0, 40);
+}
+
+export function albumRecordToDTO(
+  album: AlbumRecord,
+  items: AlbumItemRecord[],
+  coverUrl: string | null
+): AlbumDTO {
+  return {
+    id: album.id,
+    name: album.name,
+    count: items.length,
+    coverUrl,
+    createdAt: album.createdAt,
+    itemKeys: items.map((it) => memoryKey(it.kind, it.itemId)),
   };
 }

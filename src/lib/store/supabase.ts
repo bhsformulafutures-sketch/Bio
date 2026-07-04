@@ -1,8 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { newRoomCode, newToken } from "../id";
 import type {
+  AlbumItemRecord,
+  AlbumRecord,
   ChallengeRecord,
   JoinResult,
+  MemoryKind,
   NewChallenge,
   NewRandom,
   NewRandomSubmission,
@@ -157,6 +160,33 @@ const mapSubmission = (s: RandomSubmissionRow): RandomSubmissionRecord => ({
   height: s.height,
   caption: s.caption,
   createdAt: s.created_at,
+});
+
+interface AlbumRow {
+  id: string;
+  room_id: string;
+  name: string;
+  created_at: string;
+}
+interface AlbumItemRow {
+  album_id: string;
+  kind: MemoryKind;
+  item_id: string;
+  added_at: string;
+}
+
+const mapAlbum = (a: AlbumRow): AlbumRecord => ({
+  id: a.id,
+  roomId: a.room_id,
+  name: a.name,
+  createdAt: a.created_at,
+});
+
+const mapAlbumItem = (i: AlbumItemRow): AlbumItemRecord => ({
+  albumId: i.album_id,
+  kind: i.kind,
+  itemId: i.item_id,
+  addedAt: i.added_at,
 });
 
 export class SupabaseStore implements Store {
@@ -544,6 +574,99 @@ export class SupabaseStore implements Store {
       .update({ status: "expired" })
       .eq("id", id)
       .eq("status", "open");
+    if (error) throw new Error(error.message);
+  }
+
+  // ── Albums ─────────────────────────────────────────────────
+
+  async listAlbums(roomId: string): Promise<AlbumRecord[]> {
+    const { data, error } = await this.client
+      .from("albums")
+      .select()
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as AlbumRow[]).map(mapAlbum);
+  }
+
+  async getAlbum(id: string): Promise<AlbumRecord | null> {
+    const { data, error } = await this.client
+      .from("albums")
+      .select()
+      .eq("id", id)
+      .maybeSingle<AlbumRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapAlbum(data) : null;
+  }
+
+  async createAlbum(roomId: string, name: string): Promise<AlbumRecord> {
+    const { data, error } = await this.client
+      .from("albums")
+      .insert({ room_id: roomId, name })
+      .select()
+      .single<AlbumRow>();
+    if (error) throw new Error(error.message);
+    return mapAlbum(data);
+  }
+
+  async renameAlbum(id: string, name: string): Promise<AlbumRecord | null> {
+    const { data, error } = await this.client
+      .from("albums")
+      .update({ name })
+      .eq("id", id)
+      .select()
+      .maybeSingle<AlbumRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapAlbum(data) : null;
+  }
+
+  async deleteAlbum(id: string): Promise<void> {
+    // album_items cascade via FK.
+    const { error } = await this.client.from("albums").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async listAlbumItems(albumId: string): Promise<AlbumItemRecord[]> {
+    const { data, error } = await this.client
+      .from("album_items")
+      .select()
+      .eq("album_id", albumId)
+      .order("added_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as AlbumItemRow[]).map(mapAlbumItem);
+  }
+
+  async listAlbumItemsForRoom(roomId: string): Promise<AlbumItemRecord[]> {
+    const albums = await this.listAlbums(roomId);
+    if (albums.length === 0) return [];
+    const { data, error } = await this.client
+      .from("album_items")
+      .select()
+      .in(
+        "album_id",
+        albums.map((a) => a.id)
+      );
+    if (error) throw new Error(error.message);
+    return (data as AlbumItemRow[]).map(mapAlbumItem);
+  }
+
+  async addAlbumItem(albumId: string, kind: MemoryKind, itemId: string): Promise<void> {
+    const { error } = await this.client
+      .from("album_items")
+      .upsert(
+        { album_id: albumId, kind, item_id: itemId },
+        { onConflict: "album_id,kind,item_id" }
+      );
+    if (error) throw new Error(error.message);
+  }
+
+  async removeAlbumItem(albumId: string, kind: MemoryKind, itemId: string): Promise<void> {
+    const { error } = await this.client
+      .from("album_items")
+      .delete()
+      .eq("album_id", albumId)
+      .eq("kind", kind)
+      .eq("item_id", itemId);
     if (error) throw new Error(error.message);
   }
 

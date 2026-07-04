@@ -47,6 +47,17 @@ export interface ChallengeDTO {
   mergedUrl: string | null;
 }
 
+/** A shared scrapbook album. `itemKeys` are "challenge:<id>" / "random:<id>"
+ *  so the client can check membership without extra round-trips. */
+export interface AlbumDTO {
+  id: string;
+  name: string;
+  count: number;
+  coverUrl: string | null;
+  createdAt: string;
+  itemKeys: string[];
+}
+
 export interface Rect {
   x: number;
   y: number;

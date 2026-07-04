@@ -11,6 +11,7 @@ import { Header } from "@/components/Header";
 import { Avatar, Badge, Button, Card, Skeleton, Spinner, TextInput } from "@/components/ui";
 import { Countdown } from "@/components/Countdown";
 import { toast } from "@/components/Toast";
+import { BlurImage } from "@/components/motion/BlurImage";
 
 const POLL_MS = 8_000;
 
@@ -189,15 +190,12 @@ export default function RandomChallengePage({
                   key={s.participant.id}
                   className="overflow-hidden rounded-2xl bg-surface shadow-card"
                 >
-                  <div className="relative aspect-square w-full bg-line">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={s.photoUrl}
-                      alt={`${s.participant.name}'s answer`}
-                      className="h-full w-full object-cover"
-                      draggable={false}
-                    />
-                  </div>
+                  <BlurImage
+                    src={s.photoUrl}
+                    alt={`${s.participant.name}'s answer`}
+                    wrapperClassName="relative aspect-square w-full"
+                    className="h-full w-full object-cover"
+                  />
                   <figcaption className="flex flex-col gap-0.5 px-3 py-2">
                     <span className="text-[13px] font-semibold text-ink">
                       {s.mine ? "You" : s.participant.name}

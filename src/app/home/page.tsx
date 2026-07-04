@@ -10,6 +10,8 @@ import { Avatar, Button, Card, Skeleton } from "@/components/ui";
 import { GalleryCard, formatDate } from "@/components/GalleryCard";
 import { RandomCard } from "@/components/RandomCard";
 import { toast } from "@/components/Toast";
+import { Pressable } from "@/components/motion/Pressable";
+import { BlurImage } from "@/components/motion/BlurImage";
 
 const POLL_MS = 12_000;
 
@@ -137,31 +139,35 @@ export default function HomePage() {
         <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
           <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Play together</h2>
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => router.push("/new")}
-              className="group relative flex flex-col items-start gap-2 overflow-hidden rounded-3xl
-                bg-gradient-to-br from-accent-soft to-surface p-4 text-left shadow-card
-                transition-all hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98]"
-            >
-              <span className="text-3xl transition-transform group-hover:scale-110">🎨</span>
-              <span className="font-display text-lg font-bold leading-tight">Other Half</span>
-              <span className="text-xs text-soft">Hide half a photo — they imagine the rest.</span>
-            </button>
-            <button
-              onClick={startRandom}
-              disabled={starting}
-              className="group relative flex flex-col items-start gap-2 overflow-hidden rounded-3xl
-                bg-gradient-to-br from-dusk-soft to-surface p-4 text-left shadow-card
-                transition-all hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98] disabled:opacity-60"
-            >
-              <span className="text-3xl transition-transform group-hover:scale-110">🎲</span>
-              <span className="font-display text-lg font-bold leading-tight">
-                {openRandom ? "Continue" : "Random"}
-              </span>
-              <span className="text-xs text-soft">
-                {openRandom ? "You've got one in progress." : "A surprise prompt. 24 hours. Go!"}
-              </span>
-            </button>
+            <Pressable className="h-full">
+              <button
+                onClick={() => router.push("/new")}
+                className="group relative flex h-full w-full flex-col items-start gap-2 overflow-hidden rounded-3xl
+                  bg-gradient-to-br from-accent-soft to-surface p-4 text-left shadow-card
+                  transition-shadow hover:shadow-lift"
+              >
+                <span className="text-3xl transition-transform group-hover:scale-110">🎨</span>
+                <span className="font-display text-lg font-bold leading-tight">Other Half</span>
+                <span className="text-xs text-soft">Hide half a photo — they imagine the rest.</span>
+              </button>
+            </Pressable>
+            <Pressable className="h-full">
+              <button
+                onClick={startRandom}
+                disabled={starting}
+                className="group relative flex h-full w-full flex-col items-start gap-2 overflow-hidden rounded-3xl
+                  bg-gradient-to-br from-dusk-soft to-surface p-4 text-left shadow-card
+                  transition-shadow hover:shadow-lift disabled:opacity-60"
+              >
+                <span className="text-3xl transition-transform group-hover:scale-110">🎲</span>
+                <span className="font-display text-lg font-bold leading-tight">
+                  {openRandom ? "Continue" : "Random"}
+                </span>
+                <span className="text-xs text-soft">
+                  {openRandom ? "You've got one in progress." : "A surprise prompt. 24 hours. Go!"}
+                </span>
+              </button>
+            </Pressable>
           </div>
         </section>
 
@@ -170,10 +176,11 @@ export default function HomePage() {
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
               Happening now 🎲
             </h2>
+            <Pressable>
             <Link
               href={`/random/${openRandom.id}`}
               className="group flex items-center gap-4 rounded-2xl border border-dusk/20 bg-dusk-soft/50 p-4
-                transition-all hover:-translate-y-0.5 hover:shadow-card active:scale-[0.99]"
+                transition-shadow hover:shadow-card"
             >
               <span className="animate-breathe text-3xl">📸</span>
               <div className="min-w-0 flex-1">
@@ -190,6 +197,7 @@ export default function HomePage() {
                 →
               </span>
             </Link>
+            </Pressable>
           </section>
         )}
 
@@ -197,22 +205,19 @@ export default function HomePage() {
           <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Your turn ✏️</h2>
             {yourTurn.map((c) => (
+              <Pressable key={c.id}>
               <Link
-                key={c.id}
                 href={`/challenge/${c.id}`}
                 className="group flex items-center gap-4 rounded-2xl bg-surface p-3 shadow-card
-                  transition-all hover:-translate-y-0.5 hover:shadow-lift active:scale-[0.98]"
+                  transition-shadow hover:shadow-lift"
               >
-                <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={c.visibleUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                    draggable={false}
-                  />
-                </div>
+                <BlurImage
+                  src={c.visibleUrl}
+                  alt=""
+                  loading="lazy"
+                  wrapperClassName="size-16 shrink-0 rounded-xl"
+                  className="h-full w-full object-cover"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{c.creator.name} sent you a challenge</p>
                   <p className="text-sm text-soft">
@@ -223,6 +228,7 @@ export default function HomePage() {
                   →
                 </span>
               </Link>
+              </Pressable>
             ))}
           </section>
         )}
@@ -239,16 +245,13 @@ export default function HomePage() {
                 className="flex items-center gap-4 rounded-2xl border border-dashed border-line bg-surface/60 p-3
                   transition-colors hover:border-faint"
               >
-                <div className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={c.visibleUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                    draggable={false}
-                  />
-                </div>
+                <BlurImage
+                  src={c.visibleUrl}
+                  alt=""
+                  loading="lazy"
+                  wrapperClassName="size-12 shrink-0 rounded-xl"
+                  className="h-full w-full object-cover"
+                />
                 <p className="text-sm text-soft">
                   Sent {formatDate(c.createdAt)} — they haven&apos;t drawn yet
                 </p>
@@ -272,7 +275,12 @@ export default function HomePage() {
                 <GalleryCard key={c.id} challenge={c} index={i} delayMs={Math.min(i, 5) * 60} />
               ))}
               {doneRandoms.map((r, i) => (
-                <RandomCard key={r.id} random={r} delayMs={Math.min(memories.length + i, 5) * 60} />
+                <RandomCard
+                  key={r.id}
+                  random={r}
+                  index={memories.length + i}
+                  delayMs={Math.min(memories.length + i, 5) * 60}
+                />
               ))}
             </div>
           )}

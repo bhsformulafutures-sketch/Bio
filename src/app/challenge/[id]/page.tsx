@@ -13,6 +13,7 @@ import { RevealSequence } from "@/components/RevealSequence";
 import { ResultView } from "@/components/ResultView";
 import { formatDate } from "@/components/GalleryCard";
 import { toast } from "@/components/Toast";
+import { BlurImage } from "@/components/motion/BlurImage";
 
 const WAITING_POLL_MS = 10_000;
 
@@ -191,19 +192,14 @@ export default function ChallengePage({
                 Here&apos;s what they&apos;ll see. We&apos;ll flip this page the moment they finish.
               </p>
             </div>
-            <Card className="animate-fade-up overflow-hidden" >
-              <div
-                className="relative w-full"
+            <Card className="animate-fade-up overflow-hidden">
+              <BlurImage
+                src={challenge.visibleUrl}
+                alt="What your partner sees"
+                wrapperClassName="w-full"
+                className="block w-full"
                 style={{ aspectRatio: `${challenge.width} / ${challenge.height}` }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={challenge.visibleUrl}
-                  alt="What your partner sees"
-                  className="absolute inset-0 h-full w-full"
-                  draggable={false}
-                />
-              </div>
+              />
             </Card>
             {!session?.partner && (
               <p className="text-center text-sm text-faint">

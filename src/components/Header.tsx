@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { motion } from "motion/react";
 import type { RoomSummaryDTO, SessionDTO } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { Avatar, Spinner } from "./ui";
 import { toast } from "./Toast";
+import { spring } from "@/lib/motion";
 
 export function Logo({ className = "text-xl" }: { className?: string }) {
   return (
@@ -145,11 +147,13 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
 
   return (
     <div className="relative" ref={panelRef}>
-      <button
+      <motion.button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        whileTap={{ scale: 0.94 }}
+        transition={spring.snappy}
         className="flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3
-          text-xs font-semibold tracking-widest text-soft transition-all hover:border-faint active:scale-95"
+          text-xs font-semibold tracking-widest text-soft transition-colors hover:border-faint"
         title="Rooms & profile"
       >
         <Avatar avatar={session.user.avatar} name={session.user.name} className="size-6 text-xs" />
@@ -164,7 +168,7 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
-      </button>
+      </motion.button>
 
       {open && (
         <div

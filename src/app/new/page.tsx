@@ -15,6 +15,8 @@ import { api, ApiError } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { Button, Card } from "@/components/ui";
 import { toast } from "@/components/Toast";
+import { motion } from "motion/react";
+import { spring } from "@/lib/motion";
 
 type SideChoice = HiddenSide | "random";
 const FIXED_RATIO = 0.45;
@@ -169,10 +171,13 @@ export default function NewChallengePage() {
               <p className="text-sm font-semibold text-soft">Which part should we hide?</p>
               <div className="grid grid-cols-5 gap-1.5">
                 {CHOICES.map((c) => (
-                  <button
+                  <motion.button
                     key={c.id}
                     onClick={() => selectChoice(c.id)}
-                    className={`flex flex-col items-center gap-1 rounded-xl py-2.5 text-lg transition-all active:scale-95 ${
+                    whileTap={{ scale: 0.9 }}
+                    animate={choice === c.id ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+                    transition={spring.snappy}
+                    className={`flex flex-col items-center gap-1 rounded-xl py-2.5 text-lg transition-colors ${
                       choice === c.id
                         ? "bg-ink text-white shadow-card"
                         : "bg-paper text-soft hover:bg-line/70"
@@ -180,7 +185,7 @@ export default function NewChallengePage() {
                   >
                     <span aria-hidden>{c.icon}</span>
                     <span className="text-[11px] font-semibold">{c.label}</span>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
               {choice === "random" && (

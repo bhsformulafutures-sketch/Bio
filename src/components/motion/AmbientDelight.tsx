@@ -5,11 +5,12 @@ import { motion } from "motion/react";
 import { useAmbientPaused } from "@/lib/ambient";
 
 /**
- * The "living scrapbook" delight layer — rare, unpredictable moments of
+ * The "living scrapbook" delight layer — frequent, unpredictable moments of
  * warmth (a paper airplane, a few floating hearts, drifting petals, a
  * sticky note) layered above the ambient background and below all real
- * content. Nothing here is a feature: it's a hidden detail, tuned to be
- * seen once or twice in a ten-minute session, never on a loop.
+ * content. Each one fires on its own randomized ~30s timer, independent of
+ * the others, so they overlap and interleave rather than ever feeling like
+ * a fixed loop.
  *
  * Disabled entirely under prefers-reduced-motion, and paused whenever a
  * modal/menu is open or the user is mid-drawing (see `useAmbientGate`).
@@ -150,8 +151,8 @@ function PaperAirplaneLayer({ paused }: { paused: boolean }) {
     });
   }, []);
 
-  // Roughly every 2.5–6 minutes.
-  useRareLoop(150_000, 360_000, paused, spawn);
+  // Roughly every 30 seconds.
+  useRareLoop(25_000, 35_000, paused, spawn);
 
   return (
     <>
@@ -291,8 +292,8 @@ function FloatingHeartsLayer({ paused }: { paused: boolean }) {
     });
   }, []);
 
-  // Roughly every 80–190 seconds.
-  useRareLoop(80_000, 190_000, paused, spawn);
+  // Roughly every 30 seconds.
+  useRareLoop(25_000, 35_000, paused, spawn);
 
   return (
     <>
@@ -349,8 +350,8 @@ function PetalsLayer({ paused }: { paused: boolean }) {
     });
   }, []);
 
-  // Roughly every 2–5 minutes.
-  useRareLoop(120_000, 300_000, paused, spawn);
+  // Roughly every 30 seconds.
+  useRareLoop(25_000, 35_000, paused, spawn);
 
   return (
     <>
@@ -441,8 +442,8 @@ function StickyNoteLayer({ paused }: { paused: boolean }) {
     });
   }, []);
 
-  // Very rare: every 5–9 minutes.
-  useRareLoop(300_000, 540_000, paused, spawn);
+  // Roughly every 30 seconds.
+  useRareLoop(25_000, 35_000, paused, spawn);
 
   if (!note) return null;
   return <StickyNote corner={note.corner} tilt={note.tilt} />;

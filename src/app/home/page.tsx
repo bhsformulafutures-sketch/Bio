@@ -269,7 +269,7 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {memories.map((c, i) => (
-                <GalleryCard key={c.id} challenge={c} delayMs={Math.min(i, 5) * 60} />
+                <GalleryCard key={c.id} challenge={c} index={i} delayMs={Math.min(i, 5) * 60} />
               ))}
               {doneRandoms.map((r, i) => (
                 <RandomCard key={r.id} random={r} delayMs={Math.min(memories.length + i, 5) * 60} />

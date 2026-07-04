@@ -39,6 +39,12 @@
   --animate-sparkle: sparkle 1.1s ease-in-out infinite;
   --animate-rise: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-breathe: breathe 4s ease-in-out infinite;
+  /* Ambient "living interface" loops */
+  --animate-drift: drift 26s ease-in-out infinite;
+  --animate-drift-slow: drift 40s ease-in-out infinite;
+  --animate-gradient: gradient-pan 22s ease infinite;
+  --animate-glow: glow 6s ease-in-out infinite;
+  --animate-twinkle: twinkle 5.5s ease-in-out infinite;
 
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(14px); }
@@ -92,6 +98,28 @@
     0%, 100% { transform: scale(1); opacity: 0.9; }
     50% { transform: scale(1.04); opacity: 1; }
   }
+  /* Slow wandering drift for floating blurred shapes */
+  @keyframes drift {
+    0%   { transform: translate(0, 0) scale(1); }
+    33%  { transform: translate(3%, -4%) scale(1.06); }
+    66%  { transform: translate(-4%, 3%) scale(0.96); }
+    100% { transform: translate(0, 0) scale(1); }
+  }
+  /* Pan a large gradient so backgrounds feel alive, never static */
+  @keyframes gradient-pan {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  /* Gentle pulsing glow for accents */
+  @keyframes glow {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.85; }
+  }
+  /* Slow, calm twinkle for decorative particles (softer than `sparkle`) */
+  @keyframes twinkle {
+    0%, 100% { opacity: 0; transform: translateY(0) scale(0.6); }
+    50% { opacity: 0.7; transform: translateY(-10px) scale(1); }
+  }
 }
 
 html {
@@ -141,6 +169,23 @@ body::before {
   background-size: 14px 14px;
 }
 
+/* Frosted-glass surface for floating bars / sheets */
+.glass {
+  background: color-mix(in srgb, var(--color-paper) 76%, transparent);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+}
+
+/* Fixed ambient motion layer — sits above body::before, below content,
+   never intercepts pointer events. */
+.ambient-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
 /* Skeleton shimmer for loading placeholders */
 .skeleton {
   background: linear-gradient(
@@ -162,5 +207,8 @@ body::before {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .ambient-layer {
+    display: none;
   }
 }

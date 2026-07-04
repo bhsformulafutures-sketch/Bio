@@ -1,23 +1,38 @@
 "use client";
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { motion, type HTMLMotionProps } from "motion/react";
+import { spring } from "@/lib/motion";
 
 type ButtonVariant = "primary" | "soft" | "ghost" | "outline" | "dusk";
 
+/* Colour/shadow only — the lift + press are driven by Framer Motion below so
+   the whole app shares one spring feel. */
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-white shadow-card hover:bg-accent-deep hover:-translate-y-0.5 hover:shadow-lift disabled:hover:translate-y-0 disabled:hover:bg-accent",
+    "bg-accent text-white shadow-card hover:bg-accent-deep hover:shadow-lift disabled:hover:bg-accent",
   soft: "bg-accent-soft text-accent-deep hover:bg-[#fbe1e7]",
   dusk: "bg-dusk-soft text-dusk hover:bg-[#e5e2f7]",
   ghost: "text-soft hover:bg-line/60 hover:text-ink",
-  outline: "border border-line bg-surface text-ink hover:border-faint hover:-translate-y-0.5",
+  outline: "border border-line bg-surface text-ink hover:border-faint",
 };
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+/* Motion's own drag/animation handlers collide with the DOM ones, so drop them. */
+type ButtonProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  | "onAnimationStart"
+  | "onDrag"
+  | "onDragStart"
+  | "onDragEnd"
+  | "onDragEnter"
+  | "onDragLeave"
+  | "onDragOver"
+  | "onDrop"
+> & {
   variant?: ButtonVariant;
   size?: "md" | "lg" | "sm";
   loading?: boolean;
-}
+};
 
 export function Button({
   variant = "primary",
@@ -33,17 +48,21 @@ export function Button({
     md: "h-11 px-5 text-[15px]",
     lg: "h-13 px-7 text-base",
   };
+  const isDisabled = disabled || loading;
   return (
-    <button
-      {...props}
-      disabled={disabled || loading}
+    <motion.button
+      {...(props as HTMLMotionProps<"button">)}
+      disabled={isDisabled}
+      whileHover={isDisabled ? undefined : { scale: 1.025, y: -1.5 }}
+      whileTap={isDisabled ? undefined : { scale: 0.96, y: 0 }}
+      transition={spring.snappy}
       className={`relative inline-flex items-center justify-center gap-2 rounded-full font-semibold
-        transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100
+        transition-colors duration-200 disabled:opacity-50
         ${VARIANTS[variant]} ${sizes[size]} ${className}`}
     >
       {loading && <Spinner className="size-4" />}
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -66,19 +85,32 @@ export function Spinner({ className = "size-5" }: { className?: string }) {
   );
 }
 
+type CardProps = HTMLMotionProps<"div"> & {
+  /** Hover lift + shadow, for cards that act like buttons/links. */
+  interactive?: boolean;
+  /** Slow "breathing" loop for hero containers. */
+  breathe?: boolean;
+  children?: ReactNode;
+};
+
 export function Card({
   children,
   className = "",
-  style,
-}: {
-  children: ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
+  interactive = false,
+  breathe = false,
+  ...rest
+}: CardProps) {
   return (
-    <div className={`rounded-3xl bg-surface shadow-card ${className}`} style={style}>
+    <motion.div
+      {...rest}
+      whileHover={interactive ? { y: -4, scale: 1.006 } : undefined}
+      transition={spring.gentle}
+      className={`rounded-3xl bg-surface shadow-card ${
+        interactive ? "cursor-pointer hover:shadow-lift" : ""
+      } ${breathe ? "animate-breathe" : ""} ${className}`}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/Toast";
+import { MotionProvider } from "@/components/motion/MotionProvider";
+import { AmbientBackground } from "@/components/motion/AmbientBackground";
 
 export const metadata: Metadata = {
   title: "The Other Half",
@@ -21,9 +23,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="min-h-dvh">
-        {children}
-        <Toaster />
+      <body className="relative min-h-dvh">
+        <MotionProvider>
+          <AmbientBackground />
+          <div className="relative z-10 min-h-dvh">{children}</div>
+          <Toaster />
+        </MotionProvider>
       </body>
     </html>
   );

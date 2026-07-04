@@ -79,10 +79,11 @@ export async function POST(
       return NextResponse.json({ error: "Challenge not found." }, { status: 404 });
     }
 
-    // Tell the creator their partner answered (best-effort).
+    // Tell the creator their partner answered (best-effort). Exclude the
+    // solver (the person who just finished) so only the creator is pinged.
     await notifyChallengeCompleted(
       result.roomId,
-      result.creatorId,
+      session.participant.id,
       session.participant.name
     );
 

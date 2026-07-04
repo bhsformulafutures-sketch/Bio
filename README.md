@@ -1,20 +1,19 @@
 # The Other Half 💞
 
 A tiny, private world for two — playful photo mini-games and shared
-moments, just the two of you. Sign up with your email, create or join a
-room with your partner, and start playing.
-
-No feeds, no likes, no strangers. Just the two of you.
+moments, just the two of you. Pick a name, choose a room code, and start
+playing. No email, no passwords, no strangers.
 
 ## How it works
 
-1. **Sign up** with your email address (a one-time code verifies it — the
-   address is only ever used to deliver notifications).
-2. **Create your profile** — a name and a little emoji avatar.
-3. **Create a room** → you get a 6-letter code, or **join** your partner's
-   with theirs. The room permanently links the two of you; your account
-   carries the connection, so it survives across browsers and devices.
-4. Play together:
+1. **Make it yours** — pick a nickname and a little emoji avatar. That's the
+   whole sign-up: your device is issued a token and stays signed in, no
+   email or verification codes.
+2. **Create a room** → choose your own memorable code (`SUNFLOWERS`,
+   `OURPLACE`, `LATECALLS`…), or **join** your partner's with theirs. Codes
+   are 4–20 characters and case-insensitive. Once two people are in, the
+   room locks.
+3. Play together:
    - **Other Half** 🎨 — one of you hides part of a photo, the other
      imagines and draws the missing piece. Then the truth is revealed with
      a satisfying animation and a before/after comparison slider.
@@ -22,7 +21,8 @@ No feeds, no likes, no strangers. Just the two of you.
      surprise prompt from a pool of ~100 (college life, your city,
      wholesome moments, "us"...), and you both have 24 hours to answer
      with a photo. Neither photo is revealed until you've both answered.
-5. Every finished round is saved forever in your shared **Memories** gallery.
+4. Every finished round is saved forever in your shared **Memories** gallery,
+   and you can gather favourites into shared **Albums** 📚.
 
 ### Rooms
 
@@ -57,35 +57,50 @@ couple of env vars.
 
 ### Identity & auth
 
-A **user** is a verified email address + a profile (name, emoji avatar). A
-**participant** is that person's membership in one specific room — so the
-same person can belong to multiple rooms, and each room still only ever
-has two participants.
+Identity is **device-local** — no email, no passwords, no paid SMS. A
+**user** is a nickname + emoji avatar, issued an opaque token that lives in
+an httpOnly cookie so the browser stays signed in. A **participant** is that
+person's membership in one specific room — so the same person can belong to
+multiple rooms, and each room still only ever has two participants.
 
-- `src/lib/auth/email.ts` — email normalization/validation.
-- `src/lib/auth/otp.ts` — one-time code generation & hashing (HMAC, peppered
-  with `AUTH_SECRET`, 10-minute expiry, 5 attempts).
+- `src/lib/room-code.ts` — room-code normalization (uppercase, 4–20 chars,
+  case-insensitive) + validation + friendly suggestions.
+- `src/lib/avatars.ts` — the curated emoji avatar set.
 - `src/lib/session.ts` — two httpOnly cookies: `oh_uid` (who you are) and
   `oh_room` (which room you're currently looking at).
-
-In zero-config dev (no email provider configured), verification codes are
-returned in the API response and surfaced on-screen instead of emailed, so
-the whole flow works with no external accounts.
+- `POST /api/account` is the whole sign-in: pick a nickname + avatar and
+  you're in. Creating a room takes your chosen code (`POST /api/room`);
+  joining uses the partner's (`POST /api/room/join`), locking at two.
 
 ### Notifications
 
-`src/lib/notify/` is a small provider abstraction so email delivery can be
-swapped without touching call sites:
+The app is wired for **browser push** (Web Push / VAPID). Delivery is fully
+decoupled behind one seam so producers never know how a message is sent:
 
-| Provider | When | Behavior |
-| --- | --- | --- |
-| `console` | no `RESEND_*` vars set | Logs the message to the server console (dev) |
-| `resend` | `RESEND_API_KEY` + `RESEND_FROM_EMAIL` set | Sends real email via Resend's REST API |
+- `src/lib/notify/events.ts` — the typed event vocabulary: `challenge_received`,
+  `challenge_completed`, `daily_available`, `deadline_reminder`.
+- `src/lib/notify/notifications.ts` — high-level producers (a challenge is
+  sent/completed, a Random starts/completes, a daily is available, a deadline
+  nears). Call sites just build an event.
+- `src/lib/notify/dispatch.ts` — resolves a room's recipients and their push
+  subscriptions and fans out the event, pruning dead endpoints. A failed send
+  never breaks the action that triggered it.
+- `src/lib/notify/push.ts` — VAPID-configured `web-push` sender.
+- `public/sw.js` + `src/lib/push-client.ts` — the service worker and the
+  client glue (register, request permission, subscribe/unsubscribe).
 
-`src/lib/notify/notifications.ts` holds the high-level events: a challenge
-is sent, a challenge is completed, a Random Challenge starts, a Random
-Challenge is complete. Adding a new provider means adding one file under
-`src/lib/notify/providers/` and wiring it into `getEmailProvider()`.
+Push stays dormant until `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` are set —
+with no keys, events are logged server-side in dev. Generate a keypair with
+`npx web-push generate-vapid-keys`. The home-screen toggle shows a muted
+"Soon" state until keys exist, then becomes interactive.
+
+### Albums
+
+Shared **albums** collect memories from either game into named collections.
+`src/lib/store` gains an `albums` + `album_items` model (a memory is
+referenced loosely by `(kind, id)` so one album can mix both games); the
+`/api/albums` routes cover create/list/rename/delete and add/remove, and
+covers auto-resolve to the most recent memory.
 
 ### Mini-games
 
@@ -109,10 +124,9 @@ npm run dev
 # open http://localhost:3000 — no configuration needed
 ```
 
-Verification codes appear in the API response (and a toast in the UI) since
-no email provider is configured. To try the full two-person flow locally,
-open a second browser (or a private window) and sign up with a different
-email address, then join with the room code.
+To try the full two-person flow locally, open a second browser (or a private
+window), pick a different nickname, and join with the room code the first
+person chose.
 
 ## Deploying (Vercel + Supabase)
 
@@ -124,12 +138,11 @@ email address, then join with the room code.
 3. Add environment variables in Vercel:
    - `SUPABASE_URL` — Project Settings → API → Project URL
    - `SUPABASE_SERVICE_ROLE_KEY` — Project Settings → API → service_role key
-   - `AUTH_SECRET` — a long random string (used to hash verification codes)
-   - `RESEND_API_KEY`, `RESEND_FROM_EMAIL` — optional; only needed to send
-     real email. Without them, verification codes are logged server-side
-     instead of emailed, so leaving them unset is fine for a soft launch,
-     but nobody will receive real emails. `RESEND_FROM_EMAIL` needs a
-     verified sending domain in your Resend account.
+   - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` — optional; only needed to
+     deliver browser push. Generate once with `npx web-push
+     generate-vapid-keys`. Without them, push stays off (events log
+     server-side), which is fine for a soft launch.
+   - `VAPID_SUBJECT` — optional contact URL (`mailto:` or `https:`).
 4. Deploy. Done.
 
 ## Architecture notes
@@ -159,26 +172,35 @@ email address, then join with the room code.
 ```
 src/
   app/
-    page.tsx                    onboarding: email → code → profile → room
-    home/page.tsx                room home: both games, your turn, memories
+    page.tsx                    onboarding: nickname/avatar → create/join room
+    template.tsx                 shared page-transition wrapper
+    home/page.tsx                room home: albums, both games, memories
     new/page.tsx                 create an Other Half challenge
     challenge/[id]/page.tsx      Other Half: draw → reveal → result
     random/[id]/page.tsx         Random Challenge: answer → reveal
+    album/[id]/page.tsx          one album: memories + rename/delete
     api/
-      auth/                      request-code, verify, state, logout
-      profile/                   name + avatar
-      room/, rooms/               create/join/switch/delete
+      account/                   create/update device identity
+      auth/                      state, logout
+      room/, rooms/               create (custom code)/join/switch/delete
       challenges/                 Other Half
       randoms/                    Random Challenge
+      albums/                     create/list/rename/delete + items
+      push/                       VAPID key + subscribe/unsubscribe
       files/                      local-store file serving
-  components/                    DrawingBoard, RevealSequence, RandomCard…
+  components/                    DrawingBoard, RevealSequence, AlbumStrip,
+    motion/                      MotionProvider, AmbientBackground, Reveal,
+                                 BlurImage, Pressable, PageTransition
   lib/
-    auth/                        email + OTP helpers
-    notify/                      email provider abstraction + events
+    motion.ts                    shared timing/easing/spring tokens
+    room-code.ts, avatars.ts     identity + room-code helpers
+    notify/                      events → dispatch → web-push (VAPID)
+    push-client.ts               service-worker + subscription glue
     games/random/                prompts, 24h logic, countdown formatting
     store/                       Store interface + Supabase/local backends
     image-client.ts              compression, stroke replay, compositing
     region.ts                    hidden-region math (Other Half)
     session.ts                   auth + active-room cookies
+public/sw.js                     push service worker
 supabase/schema.sql              tables + storage bucket (additive)
 ```

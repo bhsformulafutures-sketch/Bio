@@ -22,20 +22,17 @@ export async function notifyChallengeSent(
   });
 }
 
-/** Notify the creator that the partner finished their challenge. */
+/** Notify the creator that the partner (the solver) finished their challenge. */
 export async function notifyChallengeCompleted(
   roomId: string,
-  creatorParticipantId: string,
+  solverParticipantId: string,
   solverName: string
 ): Promise<void> {
   await dispatch({
     type: "challenge_completed",
     roomId,
-    // Only the creator should hear about it — exclude everyone else by
-    // excluding "not the creator" is awkward, so target via a follow-up:
-    // the dispatcher notifies all non-excluded members; excluding the solver
-    // leaves the creator. In a two-person room that's exactly right.
-    exceptParticipantId: undefined,
+    // The solver already knows they just finished — notify the creator only.
+    exceptParticipantId: solverParticipantId,
     title: "Your reveal is ready ✨",
     body: `${solverName} answered your challenge — go see it.`,
     url: "/home",

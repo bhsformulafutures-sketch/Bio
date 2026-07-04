@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { AlbumSummaryDTO } from "@/lib/types";
 import { api, ApiError } from "@/lib/api";
 import { BlurImage } from "@/components/motion/BlurImage";
-import { Button, Spinner, TextInput } from "@/components/ui";
+import { Button, TextInput } from "@/components/ui";
 import { toast } from "@/components/Toast";
 import { spring, tween } from "@/lib/motion";
 import { tiltFor } from "@/components/GalleryCard";

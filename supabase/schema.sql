@@ -116,6 +116,7 @@ create index if not exists randoms_room_idx on randoms(room_id, created_at desc)
 create index if not exists random_submissions_random_idx on random_submissions(random_id);
 create index if not exists albums_room_idx on albums(room_id);
 create index if not exists album_items_album_idx on album_items(album_id);
+create unique index if not exists album_items_unique_idx on album_items(album_id, kind, memory_id);
 create index if not exists push_subscriptions_participant_idx on push_subscriptions(participant_id);
 
 -- Enable Row Level Security

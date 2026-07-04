@@ -48,6 +48,12 @@ alter table rooms enable row level security;
 alter table participants enable row level security;
 alter table challenges enable row level security;
 
+-- RLS policies for service role (used by server-side API)
+-- Service role can perform all operations
+create policy "service_access_rooms" on rooms for all to service_role using (true) with check (true);
+create policy "service_access_participants" on participants for all to service_role using (true) with check (true);
+create policy "service_access_challenges" on challenges for all to service_role using (true) with check (true);
+
 -- Storage: create a PUBLIC bucket named "photos"
 -- (Dashboard → Storage → New bucket → name: photos → Public).
 -- Object paths are rooms/<room-uuid>/<challenge-uuid>/{original,visible,drawing,merged}.*

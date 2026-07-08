@@ -131,15 +131,24 @@ alter table album_items enable row level security;
 alter table push_subscriptions enable row level security;
 
 -- RLS policies for service role (used by server-side API)
-create policy if not exists "service_access_users" on users for all to service_role using (true) with check (true);
-create policy if not exists "service_access_rooms" on rooms for all to service_role using (true) with check (true);
-create policy if not exists "service_access_participants" on participants for all to service_role using (true) with check (true);
-create policy if not exists "service_access_challenges" on challenges for all to service_role using (true) with check (true);
-create policy if not exists "service_access_randoms" on randoms for all to service_role using (true) with check (true);
-create policy if not exists "service_access_random_submissions" on random_submissions for all to service_role using (true) with check (true);
-create policy if not exists "service_access_albums" on albums for all to service_role using (true) with check (true);
-create policy if not exists "service_access_album_items" on album_items for all to service_role using (true) with check (true);
-create policy if not exists "service_access_push_subscriptions" on push_subscriptions for all to service_role using (true) with check (true);
+drop policy if exists "service_access_users" on users;
+create policy "service_access_users" on users for all to service_role using (true) with check (true);
+drop policy if exists "service_access_rooms" on rooms;
+create policy "service_access_rooms" on rooms for all to service_role using (true) with check (true);
+drop policy if exists "service_access_participants" on participants;
+create policy "service_access_participants" on participants for all to service_role using (true) with check (true);
+drop policy if exists "service_access_challenges" on challenges;
+create policy "service_access_challenges" on challenges for all to service_role using (true) with check (true);
+drop policy if exists "service_access_randoms" on randoms;
+create policy "service_access_randoms" on randoms for all to service_role using (true) with check (true);
+drop policy if exists "service_access_random_submissions" on random_submissions;
+create policy "service_access_random_submissions" on random_submissions for all to service_role using (true) with check (true);
+drop policy if exists "service_access_albums" on albums;
+create policy "service_access_albums" on albums for all to service_role using (true) with check (true);
+drop policy if exists "service_access_album_items" on album_items;
+create policy "service_access_album_items" on album_items for all to service_role using (true) with check (true);
+drop policy if exists "service_access_push_subscriptions" on push_subscriptions;
+create policy "service_access_push_subscriptions" on push_subscriptions for all to service_role using (true) with check (true);
 
 -- Storage: create a PUBLIC bucket named "photos"
 -- (Dashboard → Storage → New bucket → name: photos → Public).
@@ -182,8 +191,10 @@ create index if not exists whereami_guesses_round_idx on whereami_guesses(round_
 alter table whereami_rounds enable row level security;
 alter table whereami_guesses enable row level security;
 
-create policy if not exists "service_access_whereami_rounds" on whereami_rounds for all to service_role using (true) with check (true);
-create policy if not exists "service_access_whereami_guesses" on whereami_guesses for all to service_role using (true) with check (true);
+drop policy if exists "service_access_whereami_rounds" on whereami_rounds;
+create policy "service_access_whereami_rounds" on whereami_rounds for all to service_role using (true) with check (true);
+drop policy if exists "service_access_whereami_guesses" on whereami_guesses;
+create policy "service_access_whereami_guesses" on whereami_guesses for all to service_role using (true) with check (true);
 
 -- ── Game 3 · Know Me ────────────────────────────────────────
 
@@ -218,5 +229,7 @@ create unique index if not exists knowme_answers_unique_idx on knowme_answers(ro
 alter table knowme_rounds enable row level security;
 alter table knowme_answers enable row level security;
 
-create policy if not exists "service_access_knowme_rounds" on knowme_rounds for all to service_role using (true) with check (true);
-create policy if not exists "service_access_knowme_answers" on knowme_answers for all to service_role using (true) with check (true);
+drop policy if exists "service_access_knowme_rounds" on knowme_rounds;
+create policy "service_access_knowme_rounds" on knowme_rounds for all to service_role using (true) with check (true);
+drop policy if exists "service_access_knowme_answers" on knowme_answers;
+create policy "service_access_knowme_answers" on knowme_answers for all to service_role using (true) with check (true);

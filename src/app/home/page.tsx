@@ -3,12 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { AlbumSummaryDTO, ChallengeDTO, RandomDTO, SessionDTO } from "@/lib/types";
+import type {
+  AlbumSummaryDTO,
+  ChallengeDTO,
+  KnowMeRoundDTO,
+  RandomDTO,
+  SessionDTO,
+  WhereAmIRoundDTO,
+} from "@/lib/types";
 import { api, ApiError } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { Avatar, Button, Card, Skeleton } from "@/components/ui";
 import { GalleryCard, formatDate } from "@/components/GalleryCard";
 import { RandomCard } from "@/components/RandomCard";
+import { KnowMeCard } from "@/components/KnowMeCard";
+import { WhereAmICard } from "@/components/WhereAmICard";
 import { AlbumStrip } from "@/components/AlbumStrip";
 import { NotificationToggle } from "@/components/NotificationToggle";
 import { toast } from "@/components/Toast";
@@ -22,20 +31,26 @@ export default function HomePage() {
   const [session, setSession] = useState<SessionDTO | null>(null);
   const [challenges, setChallenges] = useState<ChallengeDTO[] | null>(null);
   const [randoms, setRandoms] = useState<RandomDTO[] | null>(null);
+  const [knowme, setKnowme] = useState<KnowMeRoundDTO[] | null>(null);
+  const [whereami, setWhereami] = useState<WhereAmIRoundDTO[] | null>(null);
   const [albums, setAlbums] = useState<AlbumSummaryDTO[] | null>(null);
   const [starting, setStarting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [me, list, rand, alb] = await Promise.all([
+      const [me, list, rand, km, wai, alb] = await Promise.all([
         api.me(),
         api.listChallenges(),
         api.listRandoms(),
+        api.listKnowMe(),
+        api.listWhereAmI(),
         api.listAlbums(),
       ]);
       setSession(me);
       setChallenges(list.challenges);
       setRandoms(rand.randoms);
+      setKnowme(km.rounds);
+      setWhereami(wai.rounds);
       setAlbums(alb.albums);
     } catch (error) {
       if ((error as { status?: number }).status === 401) router.replace("/");
@@ -53,7 +68,7 @@ export default function HomePage() {
     };
   }, [refresh]);
 
-  if (!session || !challenges || !randoms || !albums) {
+  if (!session || !challenges || !randoms || !knowme || !whereami || !albums) {
     return (
       <div className="min-h-dvh">
         <Header session={session} />
@@ -74,8 +89,13 @@ export default function HomePage() {
   const memories = challenges.filter((c) => c.status === "completed");
   const openRandom = randoms.find((r) => r.status === "open") ?? null;
   const doneRandoms = randoms.filter((r) => r.status !== "open");
+  const openKnowMe = knowme.find((r) => r.status !== "completed") ?? null;
+  const doneKnowMe = knowme.filter((r) => r.status === "completed");
+  const openWhereAmI = whereami.find((r) => r.status === "waiting") ?? null;
+  const doneWhereAmI = whereami.filter((r) => r.status !== "waiting");
   const partnerName = session.partner?.name;
-  const totalMoments = memories.length + doneRandoms.length;
+  const totalMoments =
+    memories.length + doneRandoms.length + doneKnowMe.length + doneWhereAmI.length;
 
   const share = async () => {
     const text = `Join me on The Other Half 💞 Room code: ${session.room.code} — ${window.location.origin}`;
@@ -177,14 +197,51 @@ export default function HomePage() {
                 </span>
               </button>
             </Pressable>
+            <Pressable className="h-full">
+              <button
+                onClick={() => router.push(openWhereAmI ? `/whereami/${openWhereAmI.id}` : "/whereami/new")}
+                className="group relative flex h-full w-full flex-col items-start gap-2 overflow-hidden rounded-3xl
+                  bg-gradient-to-br from-mint to-surface p-4 text-left shadow-card
+                  transition-shadow hover:shadow-lift"
+              >
+                <span className="text-3xl transition-transform group-hover:scale-110">📍</span>
+                <span className="font-display text-lg font-bold leading-tight">
+                  {openWhereAmI ? "Continue" : "Where Am I?"}
+                </span>
+                <span className="text-xs text-soft">
+                  {openWhereAmI
+                    ? "A place is waiting to be found."
+                    : "Snap where you are — they guess the spot."}
+                </span>
+              </button>
+            </Pressable>
+            <Pressable className="h-full">
+              <button
+                onClick={() => router.push(openKnowMe ? `/knowme/${openKnowMe.id}` : "/knowme")}
+                className="group relative flex h-full w-full flex-col items-start gap-2 overflow-hidden rounded-3xl
+                  bg-gradient-to-br from-gold/20 to-surface p-4 text-left shadow-card
+                  transition-shadow hover:shadow-lift"
+              >
+                <span className="text-3xl transition-transform group-hover:scale-110">💭</span>
+                <span className="font-display text-lg font-bold leading-tight">
+                  {openKnowMe ? "Continue" : "Know Me"}
+                </span>
+                <span className="text-xs text-soft">
+                  {openKnowMe
+                    ? "A quiz round is in motion."
+                    : "Five questions. How well do they really know you?"}
+                </span>
+              </button>
+            </Pressable>
           </div>
         </section>
 
-        {openRandom && (
+        {(openRandom || openKnowMe || openWhereAmI) && (
           <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
             <h2 className="text-sm font-bold uppercase tracking-wide text-soft">
               Happening now
             </h2>
+            {openRandom && (
             <Pressable>
             <Link
               href={`/random/${openRandom.id}`}
@@ -207,6 +264,53 @@ export default function HomePage() {
               </span>
             </Link>
             </Pressable>
+            )}
+            {openWhereAmI && (
+              <Pressable>
+                <Link
+                  href={`/whereami/${openWhereAmI.id}`}
+                  className="group flex items-center gap-4 rounded-2xl border border-line bg-mint/50 p-4
+                    transition-shadow hover:shadow-card"
+                >
+                  <span className="animate-breathe text-3xl">📍</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink">Where Am I?</p>
+                    <p className="text-sm text-soft">
+                      {openWhereAmI.mine
+                        ? `${partnerName ?? "Your partner"} is hunting for your secret spot`
+                        : `Find ${partnerName ?? "your partner"}'s spot — ${openWhereAmI.guessesLeft} ${openWhereAmI.guessesLeft === 1 ? "guess" : "guesses"} left`}
+                    </p>
+                  </div>
+                  <span className="flex size-8 items-center justify-center rounded-full bg-mint text-ink transition-transform group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </Link>
+              </Pressable>
+            )}
+            {openKnowMe && (
+              <Pressable>
+                <Link
+                  href={`/knowme/${openKnowMe.id}`}
+                  className="group flex items-center gap-4 rounded-2xl border border-gold/30 bg-gold/10 p-4
+                    transition-shadow hover:shadow-card"
+                >
+                  <span className="animate-breathe text-3xl">💭</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink">Know Me round</p>
+                    <p className="text-sm text-soft">
+                      {openKnowMe.status === "answered"
+                        ? "Both sheets are in — tap for the reveal!"
+                        : openKnowMe.mineSubmitted
+                          ? `Waiting on ${partnerName ?? "your partner"}'s answers`
+                          : "Your answer sheet is waiting"}
+                    </p>
+                  </div>
+                  <span className="flex size-8 items-center justify-center rounded-full bg-gold/20 text-ink transition-transform group-hover:translate-x-0.5">
+                    →
+                  </span>
+                </Link>
+              </Pressable>
+            )}
           </section>
         )}
 
@@ -277,7 +381,7 @@ export default function HomePage() {
 
         <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
           <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Memories</h2>
-          {memories.length === 0 && doneRandoms.length === 0 ? (
+          {totalMoments === 0 ? (
             <div className="dotted flex flex-col items-center gap-3 rounded-3xl border border-line py-14 text-center">
               <span className="animate-float text-4xl">🌱</span>
               <p className="max-w-60 text-sm text-soft">
@@ -295,6 +399,23 @@ export default function HomePage() {
                   random={r}
                   index={memories.length + i}
                   delayMs={Math.min(memories.length + i, 5) * 60}
+                />
+              ))}
+              {doneWhereAmI.map((r, i) => (
+                <WhereAmICard
+                  key={r.id}
+                  round={r}
+                  index={memories.length + doneRandoms.length + i}
+                  delayMs={Math.min(memories.length + doneRandoms.length + i, 5) * 60}
+                />
+              ))}
+              {doneKnowMe.map((r, i) => (
+                <KnowMeCard
+                  key={r.id}
+                  round={r}
+                  partnerName={partnerName}
+                  index={memories.length + doneRandoms.length + doneWhereAmI.length + i}
+                  delayMs={Math.min(memories.length + doneRandoms.length + doneWhereAmI.length + i, 5) * 60}
                 />
               ))}
             </div>

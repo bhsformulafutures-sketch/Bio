@@ -70,7 +70,7 @@ function ConfettiBurst() {
 /** One unlocked hint as a torn-paper note. */
 function HintNote({ hint, index }: { hint: string; index: number }) {
   return (
-    <motion.li
+    <motion.div
       layout
       initial={{ opacity: 0, y: 18, rotate: NOTE_TILTS[index % NOTE_TILTS.length] * 2, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, rotate: NOTE_TILTS[index % NOTE_TILTS.length], scale: 1 }}
@@ -84,7 +84,7 @@ function HintNote({ hint, index }: { hint: string; index: number }) {
         {HINT_LABELS[index] ?? `Hint ${index + 1}`}
       </p>
       <p className="mt-0.5 text-[15px] leading-snug text-ink">{hint}</p>
-    </motion.li>
+    </motion.div>
   );
 }
 
@@ -332,7 +332,9 @@ export default function WhereAmIRoundPage({
                   <p className="text-sm font-semibold text-soft">The hints</p>
                   <ul className="flex flex-col gap-3">
                     {round.unlockedHints.map((hint, i) => (
-                      <HintNote key={i} hint={hint} index={i} />
+                      <li key={i}>
+                        <HintNote hint={hint} index={i} />
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -364,7 +366,9 @@ export default function WhereAmIRoundPage({
               <ul className="flex flex-col gap-3">
                 <AnimatePresence initial={false}>
                   {round.unlockedHints.map((hint, i) => (
-                    <HintNote key={i} hint={hint} index={i} />
+                    <li key={i}>
+                      <HintNote hint={hint} index={i} />
+                    </li>
                   ))}
                 </AnimatePresence>
               </ul>

@@ -30,10 +30,6 @@ interface DrawingBoardProps {
   onFinish: (drawing: Blob, drawingDataUrl: string) => void;
 }
 
-function draftKey(id: string) {
-  return `oh-draft-${id}`;
-}
-
 export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardProps) {
   const { width, height } = challenge;
   const rect = useMemo(
@@ -75,31 +71,9 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     ctx.drawImage(buffer, 0, 0);
   }, [width, height, rect]);
 
-  /* Restore an interrupted draft on mount. */
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(draftKey(challenge.id));
-      if (raw) {
-        const saved = JSON.parse(raw) as DrawAction[];
-        if (Array.isArray(saved) && saved.length > 0) {
-          historyRef.current = [[], saved];
-          indexRef.current = 1;
-          setHistoryState({ index: 1, length: 2 });
-        }
-      }
-    } catch {
-      /* corrupt draft — start fresh */
-    }
     replay();
   }, [challenge.id, replay]);
-
-  const persistDraft = useCallback(() => {
-    try {
-      localStorage.setItem(draftKey(challenge.id), JSON.stringify(actions()));
-    } catch {
-      /* storage full or blocked — drawing still works */
-    }
-  }, [challenge.id]);
 
   const commit = useCallback(
     (next: DrawAction[]) => {
@@ -109,9 +83,8 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
       historyRef.current = history;
       indexRef.current = history.length - 1;
       setHistoryState({ index: indexRef.current, length: history.length });
-      persistDraft();
     },
-    [persistDraft]
+    []
   );
 
   /* ---- pointer handling ---- */
@@ -208,7 +181,6 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     if (indexRef.current === 0) return;
     indexRef.current -= 1;
     setHistoryState((s) => ({ ...s, index: indexRef.current }));
-    persistDraft();
     replay();
   };
 
@@ -216,7 +188,6 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     if (indexRef.current >= historyRef.current.length - 1) return;
     indexRef.current += 1;
     setHistoryState((s) => ({ ...s, index: indexRef.current }));
-    persistDraft();
     replay();
   };
 

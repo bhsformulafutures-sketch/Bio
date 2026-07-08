@@ -1,4 +1,10 @@
-import type { ChallengeStatus, HiddenSide, MemoryKind, RandomStatus } from "../types";
+import type {
+  ChallengeStatus,
+  HiddenSide,
+  KnowMeStatus,
+  MemoryKind,
+  RandomStatus,
+} from "../types";
 
 export interface UserRecord {
   id: string;
@@ -124,6 +130,37 @@ export interface AlbumItemRecord {
   addedAt: string;
 }
 
+// ── Game 3 · Know Me ─────────────────────────────────────────
+
+/** One Know Me round: five questions both partners answer, then rate. */
+export interface KnowMeRoundRecord {
+  id: string;
+  roomId: string;
+  starterId: string;
+  questions: string[];
+  status: KnowMeStatus;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+/** One partner's sheet for a round: per-question truth + guess, plus their
+ *  verdicts (`ratings`) on the PARTNER's guesses about them. */
+export interface KnowMeAnswerRecord {
+  id: string;
+  roundId: string;
+  participantId: string;
+  answers: { truth: string; guess: string }[];
+  ratings: boolean[] | null;
+  createdAt: string;
+}
+
+export interface NewKnowMeRound {
+  id: string;
+  roomId: string;
+  starterId: string;
+  questions: string[];
+}
+
 /** Everything the app knows about the signed-in person and, if they're in
  *  one, the active room and their partner. */
 export interface SessionRecord {
@@ -209,4 +246,21 @@ export interface Store {
   // ── Files ──────────────────────────────────────────────────
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;
   fileUrl(path: string): string;
+
+  // ── Game 3 · Know Me ───────────────────────────────────────
+  createKnowMeRound(data: NewKnowMeRound): Promise<KnowMeRoundRecord>;
+  listKnowMeRounds(roomId: string): Promise<KnowMeRoundRecord[]>;
+  getKnowMeRound(id: string): Promise<KnowMeRoundRecord | null>;
+  upsertKnowMeAnswer(data: {
+    roundId: string;
+    participantId: string;
+    answers: { truth: string; guess: string }[];
+  }): Promise<KnowMeAnswerRecord>;
+  listKnowMeAnswers(roundId: string): Promise<KnowMeAnswerRecord[]>;
+  saveKnowMeRatings(
+    roundId: string,
+    participantId: string,
+    ratings: boolean[]
+  ): Promise<void>;
+  setKnowMeStatus(id: string, status: KnowMeStatus, completedAt?: string): Promise<void>;
 }

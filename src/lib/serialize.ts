@@ -3,6 +3,7 @@ import type {
   AlbumMemoryDTO,
   AlbumSummaryDTO,
   ChallengeDTO,
+  KnowMeRoundDTO,
   RandomDTO,
   RandomSubmissionDTO,
   SessionDTO,
@@ -13,6 +14,8 @@ import type {
   AlbumItemRecord,
   AlbumRecord,
   ChallengeRecord,
+  KnowMeAnswerRecord,
+  KnowMeRoundRecord,
   RandomRecord,
   RandomSubmissionRecord,
   SessionRecord,
@@ -250,4 +253,53 @@ export function albumDetailToDTO(
     }
   }
   return { ...summary, memories };
+}
+
+// ── Game 3 · Know Me ─────────────────────────────────────────
+
+/**
+ * Shape a Know Me round for one viewer. The partner's truths and guesses stay
+ * hidden until both sheets are in (status ≥ "answered") — the same no-peeking
+ * principle as the other games, so nobody can copy or spoil the reveal.
+ * A viewer's score is the count of nailed-its the PARTNER awarded their
+ * guesses, and vice versa.
+ */
+export function knowMeToDTO(
+  round: KnowMeRoundRecord,
+  answers: KnowMeAnswerRecord[],
+  session: SessionRecord
+): KnowMeRoundDTO {
+  const nameOf = (participantId: string): { id: string; name: string } => {
+    if (participantId === session.participant.id)
+      return { id: participantId, name: session.participant.name };
+    if (session.partner && participantId === session.partner.id)
+      return { id: participantId, name: session.partner.name };
+    return { id: participantId, name: "Partner" };
+  };
+
+  const mine = answers.find((a) => a.participantId === session.participant.id) ?? null;
+  const partners =
+    answers.find((a) => a.participantId !== session.participant.id) ?? null;
+  const revealed = round.status !== "open";
+
+  const score = (ratings: boolean[] | null): number | null =>
+    ratings ? ratings.filter(Boolean).length : null;
+
+  return {
+    id: round.id,
+    status: round.status,
+    questions: round.questions,
+    createdAt: round.createdAt,
+    completedAt: round.completedAt,
+    starter: nameOf(round.starterId),
+    mineSubmitted: mine !== null,
+    partnerSubmitted: partners !== null,
+    myAnswers: mine?.answers ?? null,
+    partnerAnswers: revealed ? (partners?.answers ?? null) : null,
+    myRatings: mine?.ratings ?? null,
+    partnerRatings: revealed ? (partners?.ratings ?? null) : null,
+    // Your nailed-its live in the partner's ratings (they judged your guesses).
+    myScore: revealed ? score(partners?.ratings ?? null) : null,
+    partnerScore: revealed ? score(mine?.ratings ?? null) : null,
+  };
 }

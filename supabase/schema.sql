@@ -147,3 +147,39 @@ create policy if not exists "service_access_push_subscriptions" on push_subscrip
 insert into storage.buckets (id, name, public)
 values ('photos', 'photos', true)
 on conflict (id) do nothing;
+
+-- ── Game 3 · Know Me ────────────────────────────────────────
+
+-- Know Me rounds: five questions both partners answer, then rate
+create table if not exists knowme_rounds (
+  id            uuid primary key default gen_random_uuid(),
+  room_id       uuid not null references rooms(id) on delete cascade,
+  starter_id    uuid not null references participants(id) on delete cascade,
+  questions     jsonb not null,
+  status        text not null default 'open'
+                check (status in ('open', 'answered', 'completed')),
+  created_at    timestamptz not null default now(),
+  completed_at  timestamptz
+);
+
+-- Know Me answer sheets: one per participant per round.
+-- `answers` is [{truth, guess}] per question; `ratings` is this participant's
+-- verdicts on the partner's guesses about them.
+create table if not exists knowme_answers (
+  id              uuid primary key default gen_random_uuid(),
+  round_id        uuid not null references knowme_rounds(id) on delete cascade,
+  participant_id  uuid not null references participants(id) on delete cascade,
+  answers         jsonb not null,
+  ratings         jsonb,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists knowme_rounds_room_idx on knowme_rounds(room_id, created_at desc);
+create index if not exists knowme_answers_round_idx on knowme_answers(round_id);
+create unique index if not exists knowme_answers_unique_idx on knowme_answers(round_id, participant_id);
+
+alter table knowme_rounds enable row level security;
+alter table knowme_answers enable row level security;
+
+create policy if not exists "service_access_knowme_rounds" on knowme_rounds for all to service_role using (true) with check (true);
+create policy if not exists "service_access_knowme_answers" on knowme_answers for all to service_role using (true) with check (true);

@@ -9,7 +9,10 @@ import type {
   ChallengeRecord,
   CreateRoomResult,
   JoinResult,
+  KnowMeAnswerRecord,
+  KnowMeRoundRecord,
   NewChallenge,
+  NewKnowMeRound,
   NewRandom,
   NewRandomSubmission,
   ParticipantRecord,
@@ -20,6 +23,7 @@ import type {
   Store,
   UserRecord,
 } from "./types";
+import type { KnowMeStatus } from "../types";
 
 interface Db {
   users: UserRecord[];
@@ -31,6 +35,9 @@ interface Db {
   albums: AlbumRecord[];
   albumItems: AlbumItemRecord[];
   pushSubscriptions: PushSubscriptionRecord[];
+  // ── Game 3 · Know Me ───────────────────────────────────────
+  knowmeRounds: KnowMeRoundRecord[];
+  knowmeAnswers: KnowMeAnswerRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -47,6 +54,9 @@ const EMPTY_DB: Db = {
   albums: [],
   albumItems: [],
   pushSubscriptions: [],
+  // ── Game 3 · Know Me ───────────────────────────────────────
+  knowmeRounds: [],
+  knowmeAnswers: [],
 };
 
 /**
@@ -223,6 +233,14 @@ export class LocalStore implements Store {
       const removedAlbums = db.albums.filter((a) => a.roomId === roomId).map((a) => a.id);
       db.albums = db.albums.filter((a) => a.roomId !== roomId);
       db.albumItems = db.albumItems.filter((i) => !removedAlbums.includes(i.albumId));
+      // ── Game 3 · Know Me ───────────────────────────────────
+      const removedKnowMe = db.knowmeRounds
+        .filter((r) => r.roomId === roomId)
+        .map((r) => r.id);
+      db.knowmeRounds = db.knowmeRounds.filter((r) => r.roomId !== roomId);
+      db.knowmeAnswers = db.knowmeAnswers.filter(
+        (a) => !removedKnowMe.includes(a.roundId)
+      );
       await this.writeDb(db);
       await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
         recursive: true,
@@ -534,6 +552,99 @@ export class LocalStore implements Store {
 
   fileUrl(filePath: string): string {
     return `/api/files/${filePath}`;
+  }
+
+  // ── Game 3 · Know Me ───────────────────────────────────────
+
+  createKnowMeRound(data: NewKnowMeRound) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const round: KnowMeRoundRecord = {
+        ...data,
+        status: "open",
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+      };
+      db.knowmeRounds.push(round);
+      await this.writeDb(db);
+      return round;
+    });
+  }
+
+  async listKnowMeRounds(roomId: string): Promise<KnowMeRoundRecord[]> {
+    const db = await this.readDb();
+    return db.knowmeRounds
+      .filter((r) => r.roomId === roomId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getKnowMeRound(id: string): Promise<KnowMeRoundRecord | null> {
+    const db = await this.readDb();
+    return db.knowmeRounds.find((r) => r.id === id) ?? null;
+  }
+
+  upsertKnowMeAnswer(data: {
+    roundId: string;
+    participantId: string;
+    answers: { truth: string; guess: string }[];
+  }) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const existing = db.knowmeAnswers.find(
+        (a) => a.roundId === data.roundId && a.participantId === data.participantId
+      );
+      if (existing) {
+        existing.answers = data.answers;
+        await this.writeDb(db);
+        return existing;
+      }
+      const answer: KnowMeAnswerRecord = {
+        id: randomUUID(),
+        roundId: data.roundId,
+        participantId: data.participantId,
+        answers: data.answers,
+        ratings: null,
+        createdAt: new Date().toISOString(),
+      };
+      db.knowmeAnswers.push(answer);
+      await this.writeDb(db);
+      return answer;
+    });
+  }
+
+  async listKnowMeAnswers(roundId: string): Promise<KnowMeAnswerRecord[]> {
+    const db = await this.readDb();
+    return db.knowmeAnswers
+      .filter((a) => a.roundId === roundId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  saveKnowMeRatings(
+    roundId: string,
+    participantId: string,
+    ratings: boolean[]
+  ): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const answer = db.knowmeAnswers.find(
+        (a) => a.roundId === roundId && a.participantId === participantId
+      );
+      if (!answer) throw new Error("Answer sheet not found");
+      answer.ratings = ratings;
+      await this.writeDb(db);
+    });
+  }
+
+  setKnowMeStatus(id: string, status: KnowMeStatus, completedAt?: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const round = db.knowmeRounds.find((r) => r.id === id);
+      if (round) {
+        round.status = status;
+        if (completedAt !== undefined) round.completedAt = completedAt;
+        await this.writeDb(db);
+      }
+    });
   }
 }
 

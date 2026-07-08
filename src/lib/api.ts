@@ -3,6 +3,8 @@ import type {
   AlbumSummaryDTO,
   AuthStateDTO,
   ChallengeDTO,
+  KnowMeAnswerPair,
+  KnowMeRoundDTO,
   MemoryKind,
   RandomDTO,
   RoomSummaryDTO,
@@ -160,4 +162,19 @@ export const api = {
       ...json({ kind, memoryId }),
       method: "DELETE",
     }),
+
+  // ── Game 3 · Know Me ───────────────────────────────────────
+  listKnowMe: () => request<{ rounds: KnowMeRoundDTO[] }>("/api/knowme"),
+
+  startKnowMe: () =>
+    request<{ round: KnowMeRoundDTO }>("/api/knowme", { method: "POST" }),
+
+  getKnowMe: (id: string) =>
+    request<{ round: KnowMeRoundDTO }>(`/api/knowme/${id}`),
+
+  submitKnowMeAnswers: (id: string, answers: KnowMeAnswerPair[]) =>
+    request<{ round: KnowMeRoundDTO }>(`/api/knowme/${id}/answers`, json({ answers })),
+
+  rateKnowMe: (id: string, ratings: boolean[]) =>
+    request<{ round: KnowMeRoundDTO }>(`/api/knowme/${id}/ratings`, json({ ratings })),
 };

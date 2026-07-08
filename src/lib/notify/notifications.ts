@@ -91,3 +91,32 @@ export async function notifyDeadlineSoon(roomId: string, prompt: string): Promis
     url: "/home",
   });
 }
+
+// ── Game 3 · Know Me ─────────────────────────────────────────
+
+/** Notify the partner that a Know Me round is waiting for their answers. */
+export async function notifyKnowMeStarted(
+  roomId: string,
+  fromParticipantId: string,
+  fromName: string
+): Promise<void> {
+  await dispatch({
+    type: "challenge_received",
+    roomId,
+    exceptParticipantId: fromParticipantId,
+    title: "How well do you know them? 💭",
+    body: `${fromName} started a Know Me round — five questions await.`,
+    url: "/knowme",
+  });
+}
+
+/** Notify both people that a Know Me round is ready for its reveal. */
+export async function notifyKnowMeAnswered(roomId: string): Promise<void> {
+  await dispatch({
+    type: "challenge_completed",
+    roomId,
+    title: "Your Know Me reveal is ready 💘",
+    body: "You both answered — see the guesses side by side.",
+    url: "/knowme",
+  });
+}

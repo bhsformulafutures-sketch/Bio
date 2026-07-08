@@ -7,7 +7,10 @@ import type {
   ChallengeRecord,
   CreateRoomResult,
   JoinResult,
+  KnowMeAnswerRecord,
+  KnowMeRoundRecord,
   NewChallenge,
+  NewKnowMeRound,
   NewRandom,
   NewRandomSubmission,
   ParticipantRecord,
@@ -18,6 +21,7 @@ import type {
   Store,
   UserRecord,
 } from "./types";
+import type { KnowMeStatus } from "../types";
 
 const BUCKET = "photos";
 
@@ -193,6 +197,45 @@ const mapSubmission = (s: RandomSubmissionRow): RandomSubmissionRecord => ({
   height: s.height,
   caption: s.caption,
   createdAt: s.created_at,
+});
+
+// ── Game 3 · Know Me ─────────────────────────────────────────
+
+interface KnowMeRoundRow {
+  id: string;
+  room_id: string;
+  starter_id: string;
+  questions: string[];
+  status: KnowMeStatus;
+  created_at: string;
+  completed_at: string | null;
+}
+interface KnowMeAnswerRow {
+  id: string;
+  round_id: string;
+  participant_id: string;
+  answers: { truth: string; guess: string }[];
+  ratings: boolean[] | null;
+  created_at: string;
+}
+
+const mapKnowMeRound = (r: KnowMeRoundRow): KnowMeRoundRecord => ({
+  id: r.id,
+  roomId: r.room_id,
+  starterId: r.starter_id,
+  questions: r.questions,
+  status: r.status,
+  createdAt: r.created_at,
+  completedAt: r.completed_at,
+});
+
+const mapKnowMeAnswer = (a: KnowMeAnswerRow): KnowMeAnswerRecord => ({
+  id: a.id,
+  roundId: a.round_id,
+  participantId: a.participant_id,
+  answers: a.answers,
+  ratings: a.ratings,
+  createdAt: a.created_at,
 });
 
 export class SupabaseStore implements Store {
@@ -699,5 +742,100 @@ export class SupabaseStore implements Store {
 
   fileUrl(path: string): string {
     return `${this.baseUrl}/storage/v1/object/public/${BUCKET}/${path}`;
+  }
+
+  // ── Game 3 · Know Me ───────────────────────────────────────
+
+  async createKnowMeRound(data: NewKnowMeRound): Promise<KnowMeRoundRecord> {
+    const { data: row, error } = await this.client
+      .from("knowme_rounds")
+      .insert({
+        id: data.id,
+        room_id: data.roomId,
+        starter_id: data.starterId,
+        questions: data.questions,
+      })
+      .select()
+      .single<KnowMeRoundRow>();
+    if (error) throw new Error(error.message);
+    return mapKnowMeRound(row);
+  }
+
+  async listKnowMeRounds(roomId: string): Promise<KnowMeRoundRecord[]> {
+    const { data, error } = await this.client
+      .from("knowme_rounds")
+      .select()
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as KnowMeRoundRow[]).map(mapKnowMeRound);
+  }
+
+  async getKnowMeRound(id: string): Promise<KnowMeRoundRecord | null> {
+    const { data, error } = await this.client
+      .from("knowme_rounds")
+      .select()
+      .eq("id", id)
+      .maybeSingle<KnowMeRoundRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapKnowMeRound(data) : null;
+  }
+
+  async upsertKnowMeAnswer(data: {
+    roundId: string;
+    participantId: string;
+    answers: { truth: string; guess: string }[];
+  }): Promise<KnowMeAnswerRecord> {
+    const { data: row, error } = await this.client
+      .from("knowme_answers")
+      .upsert(
+        {
+          round_id: data.roundId,
+          participant_id: data.participantId,
+          answers: data.answers,
+        },
+        { onConflict: "round_id,participant_id" }
+      )
+      .select()
+      .single<KnowMeAnswerRow>();
+    if (error) throw new Error(error.message);
+    return mapKnowMeAnswer(row);
+  }
+
+  async listKnowMeAnswers(roundId: string): Promise<KnowMeAnswerRecord[]> {
+    const { data, error } = await this.client
+      .from("knowme_answers")
+      .select()
+      .eq("round_id", roundId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data as KnowMeAnswerRow[]).map(mapKnowMeAnswer);
+  }
+
+  async saveKnowMeRatings(
+    roundId: string,
+    participantId: string,
+    ratings: boolean[]
+  ): Promise<void> {
+    const { error } = await this.client
+      .from("knowme_answers")
+      .update({ ratings })
+      .eq("round_id", roundId)
+      .eq("participant_id", participantId);
+    if (error) throw new Error(error.message);
+  }
+
+  async setKnowMeStatus(
+    id: string,
+    status: KnowMeStatus,
+    completedAt?: string
+  ): Promise<void> {
+    const patch: Record<string, unknown> = { status };
+    if (completedAt !== undefined) patch.completed_at = completedAt;
+    const { error } = await this.client
+      .from("knowme_rounds")
+      .update(patch)
+      .eq("id", id);
+    if (error) throw new Error(error.message);
   }
 }

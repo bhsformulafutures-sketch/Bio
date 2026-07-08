@@ -151,3 +151,45 @@ export interface RandomDTO {
   /** submissions the viewer is allowed to see (own always; partner's once both in) */
   submissions: RandomSubmissionDTO[];
 }
+
+// ── Game 3 · Know Me ─────────────────────────────────────────
+
+export type KnowMeStatus = "open" | "answered" | "completed";
+
+/** One question's pair of short answers: your truth + your guess about them. */
+export interface KnowMeAnswerPair {
+  truth: string;
+  guess: string;
+}
+
+/**
+ * A Know Me round as seen by one viewer. The partner's truths and guesses are
+ * withheld until BOTH sheets are in (status ≥ "answered") — no peeking, so
+ * the side-by-side reveal is a shared surprise. Ratings are each player's
+ * verdicts on the PARTNER's guesses about them, which means your score is
+ * awarded by your partner and vice versa.
+ */
+export interface KnowMeRoundDTO {
+  id: string;
+  status: KnowMeStatus;
+  questions: string[];
+  createdAt: string;
+  completedAt: string | null;
+  starter: { id: string; name: string };
+  /** true once the viewer has submitted their own sheet */
+  mineSubmitted: boolean;
+  /** true once the partner has submitted (their text may still be hidden) */
+  partnerSubmitted: boolean;
+  /** the viewer's own truths + guesses (always visible to them) */
+  myAnswers: KnowMeAnswerPair[] | null;
+  /** the partner's truths + guesses — null until status is at least "answered" */
+  partnerAnswers: KnowMeAnswerPair[] | null;
+  /** verdicts the viewer gave on the partner's guesses about them */
+  myRatings: boolean[] | null;
+  /** verdicts the partner gave on the viewer's guesses about them */
+  partnerRatings: boolean[] | null;
+  /** nailed-its the viewer earned as a guesser — null until the partner rates */
+  myScore: number | null;
+  /** nailed-its the partner earned — null until the viewer rates */
+  partnerScore: number | null;
+}

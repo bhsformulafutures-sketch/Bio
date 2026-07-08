@@ -7,6 +7,7 @@ import type {
   RandomDTO,
   RoomSummaryDTO,
   SessionDTO,
+  WhereAmIRoundDTO,
 } from "./types";
 
 export class ApiError extends Error {
@@ -160,4 +161,19 @@ export const api = {
       ...json({ kind, memoryId }),
       method: "DELETE",
     }),
+
+  // ── Game 4 · Where Am I ────────────────────────────────────
+  listWhereAmI: () => request<{ rounds: WhereAmIRoundDTO[] }>("/api/whereami"),
+
+  createWhereAmI: (form: FormData) =>
+    request<{ round: WhereAmIRoundDTO }>("/api/whereami", {
+      method: "POST",
+      body: form,
+    }),
+
+  getWhereAmI: (id: string) =>
+    request<{ round: WhereAmIRoundDTO }>(`/api/whereami/${id}`),
+
+  guessWhereAmI: (id: string, text: string) =>
+    request<{ round: WhereAmIRoundDTO }>(`/api/whereami/${id}/guess`, json({ text })),
 };

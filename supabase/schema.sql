@@ -147,3 +147,40 @@ create policy if not exists "service_access_push_subscriptions" on push_subscrip
 insert into storage.buckets (id, name, public)
 values ('photos', 'photos', true)
 on conflict (id) do nothing;
+
+-- ── Game 4 · Where Am I ──────────────────────────────────────
+
+-- Where Am I rounds: photo location-guessing games
+create table if not exists whereami_rounds (
+  id            uuid primary key default gen_random_uuid(),
+  room_id       uuid not null references rooms(id) on delete cascade,
+  creator_id    uuid not null references participants(id) on delete cascade,
+  status        text not null default 'waiting'
+                check (status in ('waiting', 'solved', 'revealed')),
+  photo_path    text not null,
+  width         integer not null,
+  height        integer not null,
+  answer        text not null,
+  hints         jsonb not null default '[]'::jsonb,
+  created_at    timestamptz not null default now(),
+  completed_at  timestamptz
+);
+
+-- Where Am I guesses: the typed attempts (right and wrong) at each round
+create table if not exists whereami_guesses (
+  id              uuid primary key default gen_random_uuid(),
+  round_id        uuid not null references whereami_rounds(id) on delete cascade,
+  participant_id  uuid not null references participants(id) on delete cascade,
+  text            text not null,
+  correct         boolean not null default false,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists whereami_rounds_room_idx on whereami_rounds(room_id, created_at desc);
+create index if not exists whereami_guesses_round_idx on whereami_guesses(round_id);
+
+alter table whereami_rounds enable row level security;
+alter table whereami_guesses enable row level security;
+
+create policy if not exists "service_access_whereami_rounds" on whereami_rounds for all to service_role using (true) with check (true);
+create policy if not exists "service_access_whereami_guesses" on whereami_guesses for all to service_role using (true) with check (true);

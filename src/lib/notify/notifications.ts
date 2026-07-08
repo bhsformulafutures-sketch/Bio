@@ -91,3 +91,43 @@ export async function notifyDeadlineSoon(roomId: string, prompt: string): Promis
     url: "/home",
   });
 }
+
+// ── Game 4 · Where Am I ──────────────────────────────────────
+
+/** Notify the partner that a new Where Am I round is waiting to be guessed. */
+export async function notifyWhereAmIStarted(
+  roomId: string,
+  fromParticipantId: string,
+  fromName: string,
+  roundId: string
+): Promise<void> {
+  await dispatch({
+    type: "challenge_received",
+    roomId,
+    exceptParticipantId: fromParticipantId,
+    title: "Where Am I? 🗺️",
+    body: `${fromName} is somewhere mysterious — come guess the place.`,
+    url: `/whereami/${roundId}`,
+  });
+}
+
+/** Notify the creator that their partner just finished the round. */
+export async function notifyWhereAmIFinished(
+  roomId: string,
+  guesserParticipantId: string,
+  guesserName: string,
+  roundId: string,
+  solved: boolean
+): Promise<void> {
+  await dispatch({
+    type: "challenge_completed",
+    roomId,
+    // The guesser just lived the ending — nudge the creator only.
+    exceptParticipantId: guesserParticipantId,
+    title: solved ? "They found you 💘" : "They never found you 🙈",
+    body: solved
+      ? `${guesserName} guessed your place — see how it went.`
+      : `${guesserName} ran out of guesses — see their attempts.`,
+    url: `/whereami/${roundId}`,
+  });
+}

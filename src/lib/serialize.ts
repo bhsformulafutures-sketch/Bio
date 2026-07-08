@@ -7,6 +7,8 @@ import type {
   RandomSubmissionDTO,
   SessionDTO,
   UserDTO,
+  WhereAmIGuessDTO,
+  WhereAmIRoundDTO,
 } from "./types";
 import { getStore } from "./store";
 import type {
@@ -17,6 +19,8 @@ import type {
   RandomSubmissionRecord,
   SessionRecord,
   UserRecord,
+  WhereAmIGuessRecord,
+  WhereAmIRoundRecord,
 } from "./store/types";
 export function userToDTO(user: UserRecord): UserDTO {
   return {
@@ -250,4 +254,74 @@ export function albumDetailToDTO(
     }
   }
   return { ...summary, memories };
+}
+
+// ── Game 4 · Where Am I ──────────────────────────────────────
+
+/** Total attempts a guesser gets before the answer is revealed. */
+export const WHEREAMI_MAX_GUESSES = 4;
+
+/**
+ * Shape a Where Am I round for one viewer. The creator sees everything —
+ * answer, all three hints, the live guess log. The guesser only ever
+ * receives what they've earned: one hint per wrong guess, and the answer
+ * strictly after the round has finished. No peeking via the network tab.
+ */
+export function whereAmIToDTO(
+  round: WhereAmIRoundRecord,
+  guesses: WhereAmIGuessRecord[],
+  session: SessionRecord
+): WhereAmIRoundDTO {
+  const store = getStore();
+  const mine = round.creatorId === session.participant.id;
+  const finished = round.status !== "waiting";
+  const wrongCount = guesses.filter((g) => !g.correct).length;
+
+  const creator =
+    round.creatorId === session.participant.id
+      ? { id: round.creatorId, name: session.participant.name }
+      : session.partner && round.creatorId === session.partner.id
+        ? { id: round.creatorId, name: session.partner.name }
+        : { id: round.creatorId, name: "Partner" };
+
+  const guessLog: WhereAmIGuessDTO[] = guesses.map((g) => ({
+    id: g.id,
+    text: g.text,
+    correct: g.correct,
+    mine: g.participantId === session.participant.id,
+    createdAt: g.createdAt,
+  }));
+
+  // Hints: creator sees all; once the round ends everything is on the table;
+  // mid-round the guesser gets exactly one per wrong guess.
+  const unlockedHints =
+    mine || finished
+      ? round.hints
+      : round.hints.slice(0, Math.min(wrongCount, round.hints.length));
+
+  // Hearts: 4 minus the wrong guesses it took — never below 1 when solved,
+  // a flat 0 when the guesser ran out of tries.
+  const hearts =
+    round.status === "solved"
+      ? Math.max(1, WHEREAMI_MAX_GUESSES - wrongCount)
+      : round.status === "revealed"
+        ? 0
+        : null;
+
+  return {
+    id: round.id,
+    status: round.status,
+    createdAt: round.createdAt,
+    completedAt: round.completedAt,
+    creator,
+    mine,
+    photoUrl: store.fileUrl(round.photoPath),
+    width: round.width,
+    height: round.height,
+    unlockedHints,
+    guesses: guessLog,
+    guessesLeft: Math.max(0, WHEREAMI_MAX_GUESSES - guesses.length),
+    hearts,
+    answer: mine || finished ? round.answer : null,
+  };
 }

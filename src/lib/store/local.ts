@@ -12,6 +12,8 @@ import type {
   NewChallenge,
   NewRandom,
   NewRandomSubmission,
+  NewWhereAmIGuess,
+  NewWhereAmIRound,
   ParticipantRecord,
   PushSubscriptionRecord,
   RandomRecord,
@@ -19,7 +21,10 @@ import type {
   RoomRecord,
   Store,
   UserRecord,
+  WhereAmIGuessRecord,
+  WhereAmIRoundRecord,
 } from "./types";
+import type { WhereAmIStatus } from "../types";
 
 interface Db {
   users: UserRecord[];
@@ -31,6 +36,9 @@ interface Db {
   albums: AlbumRecord[];
   albumItems: AlbumItemRecord[];
   pushSubscriptions: PushSubscriptionRecord[];
+  // ── Game 4 · Where Am I
+  whereamiRounds: WhereAmIRoundRecord[];
+  whereamiGuesses: WhereAmIGuessRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -47,6 +55,9 @@ const EMPTY_DB: Db = {
   albums: [],
   albumItems: [],
   pushSubscriptions: [],
+  // ── Game 4 · Where Am I
+  whereamiRounds: [],
+  whereamiGuesses: [],
 };
 
 /**
@@ -223,6 +234,14 @@ export class LocalStore implements Store {
       const removedAlbums = db.albums.filter((a) => a.roomId === roomId).map((a) => a.id);
       db.albums = db.albums.filter((a) => a.roomId !== roomId);
       db.albumItems = db.albumItems.filter((i) => !removedAlbums.includes(i.albumId));
+      // ── Game 4 · Where Am I
+      const removedRounds = db.whereamiRounds
+        .filter((r) => r.roomId === roomId)
+        .map((r) => r.id);
+      db.whereamiRounds = db.whereamiRounds.filter((r) => r.roomId !== roomId);
+      db.whereamiGuesses = db.whereamiGuesses.filter(
+        (g) => !removedRounds.includes(g.roundId)
+      );
       await this.writeDb(db);
       await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
         recursive: true,
@@ -534,6 +553,68 @@ export class LocalStore implements Store {
 
   fileUrl(filePath: string): string {
     return `/api/files/${filePath}`;
+  }
+
+  // ── Game 4 · Where Am I ────────────────────────────────────
+
+  createWhereAmIRound(data: NewWhereAmIRound) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const round: WhereAmIRoundRecord = {
+        ...data,
+        status: "waiting",
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+      };
+      db.whereamiRounds.push(round);
+      await this.writeDb(db);
+      return round;
+    });
+  }
+
+  async listWhereAmIRounds(roomId: string): Promise<WhereAmIRoundRecord[]> {
+    const db = await this.readDb();
+    return db.whereamiRounds
+      .filter((r) => r.roomId === roomId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getWhereAmIRound(id: string): Promise<WhereAmIRoundRecord | null> {
+    const db = await this.readDb();
+    return db.whereamiRounds.find((r) => r.id === id) ?? null;
+  }
+
+  addWhereAmIGuess(data: NewWhereAmIGuess) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const guess: WhereAmIGuessRecord = {
+        id: randomUUID(),
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
+      db.whereamiGuesses.push(guess);
+      await this.writeDb(db);
+      return guess;
+    });
+  }
+
+  async listWhereAmIGuesses(roundId: string): Promise<WhereAmIGuessRecord[]> {
+    const db = await this.readDb();
+    return db.whereamiGuesses
+      .filter((g) => g.roundId === roundId)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  setWhereAmIStatus(id: string, status: WhereAmIStatus, completedAt?: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const round = db.whereamiRounds.find((r) => r.id === id);
+      if (round) {
+        round.status = status;
+        if (completedAt !== undefined) round.completedAt = completedAt;
+        await this.writeDb(db);
+      }
+    });
   }
 }
 

@@ -4,6 +4,7 @@ import type {
   KnowMeStatus,
   MemoryKind,
   RandomStatus,
+  WhereAmIStatus,
 } from "../types";
 
 export interface UserRecord {
@@ -130,6 +131,52 @@ export interface AlbumItemRecord {
   addedAt: string;
 }
 
+// ── Game 4 · Where Am I ──────────────────────────────────────
+
+/** One round: a photo of a secret place plus its answer and 3 hints. */
+export interface WhereAmIRoundRecord {
+  id: string;
+  roomId: string;
+  creatorId: string;
+  status: WhereAmIStatus;
+  photoPath: string;
+  width: number;
+  height: number;
+  answer: string;
+  hints: string[];
+  createdAt: string;
+  completedAt: string | null;
+}
+
+/** One typed guess at a round's secret place. */
+export interface WhereAmIGuessRecord {
+  id: string;
+  roundId: string;
+  participantId: string;
+  text: string;
+  correct: boolean;
+  createdAt: string;
+}
+
+export interface NewWhereAmIRound {
+  /** Generated up front so storage paths and the record share one id. */
+  id: string;
+  roomId: string;
+  creatorId: string;
+  photoPath: string;
+  width: number;
+  height: number;
+  answer: string;
+  hints: string[];
+}
+
+export interface NewWhereAmIGuess {
+  roundId: string;
+  participantId: string;
+  text: string;
+  correct: boolean;
+}
+
 // ── Game 3 · Know Me ─────────────────────────────────────────
 
 /** One Know Me round: five questions both partners answer, then rate. */
@@ -246,6 +293,18 @@ export interface Store {
   // ── Files ──────────────────────────────────────────────────
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;
   fileUrl(path: string): string;
+
+  // ── Game 4 · Where Am I ────────────────────────────────────
+  createWhereAmIRound(data: NewWhereAmIRound): Promise<WhereAmIRoundRecord>;
+  listWhereAmIRounds(roomId: string): Promise<WhereAmIRoundRecord[]>;
+  getWhereAmIRound(id: string): Promise<WhereAmIRoundRecord | null>;
+  addWhereAmIGuess(data: NewWhereAmIGuess): Promise<WhereAmIGuessRecord>;
+  listWhereAmIGuesses(roundId: string): Promise<WhereAmIGuessRecord[]>;
+  setWhereAmIStatus(
+    id: string,
+    status: WhereAmIStatus,
+    completedAt?: string
+  ): Promise<void>;
 
   // ── Game 3 · Know Me ───────────────────────────────────────
   createKnowMeRound(data: NewKnowMeRound): Promise<KnowMeRoundRecord>;

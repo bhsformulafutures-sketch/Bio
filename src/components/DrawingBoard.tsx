@@ -3,14 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChallengeDTO, DrawAction, Stroke, Tool } from "@/lib/types";
 import { hiddenRect } from "@/lib/region";
-import {
-  canvasToBlob,
-  fileToImage,
-  paintActions,
-  photoToRegionDataUrl,
-} from "@/lib/image-client";
+import { canvasToBlob, paintActions } from "@/lib/image-client";
 import { Button, Card } from "./ui";
 import { toast } from "./Toast";
+import { PhotoAligner } from "./PhotoAligner";
 import { pauseAmbient, resumeAmbient } from "@/lib/ambient";
 
 const COLORS = [
@@ -48,9 +44,9 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
   const replaySeqRef = useRef(0);
   const liveStrokeRef = useRef<Stroke | null>(null);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [tool, setTool] = useState<Tool>("pencil");
+  const [aligning, setAligning] = useState(false);
   const [color, setColor] = useState(COLORS[0]);
   const [size, setSize] = useState(SIZE_DEFAULT);
   // Mirrors of the history refs, so buttons re-render.
@@ -185,24 +181,13 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     commit([...actions(), stroke]);
   };
 
-  /* ---- photo answers ---- */
+  /* ---- photo answers (via the alignment sheet) ---- */
 
-  const addPhoto = async (file: File | undefined) => {
-    if (photoInputRef.current) photoInputRef.current.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast("That doesn't look like an image.", "error");
-      return;
-    }
-    try {
-      const img = await fileToImage(file);
-      const dataUrl = photoToRegionDataUrl(img, rect);
-      commit([...actions(), { kind: "photo", dataUrl }]);
-      replay();
-      toast("Photo placed — draw on top or finish!");
-    } catch {
-      toast("Couldn't read that image — try another one.", "error");
-    }
+  const placeAlignedPhoto = (dataUrl: string) => {
+    setAligning(false);
+    commit([...actions(), { kind: "photo", dataUrl }]);
+    replay();
+    toast("Photo placed — draw on top or finish!");
   };
 
   /* ---- history actions ---- */
@@ -342,19 +327,12 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
             </ToolButton>
             <ToolButton
               active={false}
-              onClick={() => photoInputRef.current?.click()}
+              onClick={() => setAligning(true)}
               label="Answer with a photo"
             >
               <CameraIcon />
             </ToolButton>
           </div>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => addPhoto(e.target.files?.[0])}
-          />
 
           <input
             type="range"
@@ -401,6 +379,15 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
               : "Finish"}
         </Button>
       </Card>
+
+      {aligning && (
+        <PhotoAligner
+          challenge={challenge}
+          rect={rect}
+          onDone={placeAlignedPhoto}
+          onClose={() => setAligning(false)}
+        />
+      )}
     </div>
   );
 }

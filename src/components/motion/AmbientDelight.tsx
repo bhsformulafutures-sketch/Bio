@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { motion, useMotionValue, useTransform } from "motion/react";
 import { useAmbientPaused } from "@/lib/ambient";
 
 /**
@@ -133,12 +133,12 @@ function PaperAirplaneLayer({ paused }: { paused: boolean }) {
       const h = window.innerHeight;
       const from = pick(EDGES);
       const to = pick(EDGES.filter((e) => e !== from));
-      const start = edgePoint(from, w, h);
-      const end = edgePoint(to, w, h);
+      const start = edgePoint(from, w, h, 72);
+      const end = edgePoint(to, w, h, 72);
       const mid1: Pt = { x: rand(w * 0.2, w * 0.8), y: rand(h * 0.15, h * 0.8) };
       const mid2: Pt = { x: rand(w * 0.2, w * 0.8), y: rand(h * 0.2, h * 0.85) };
       const id = nextId.current++;
-      const duration = rand(5, 7.5);
+      const duration = rand(6.5, 9);
 
       setFlights((f) => [...f, { id, start, mid1, mid2, end, duration }]);
       setTimeout(
@@ -163,89 +163,174 @@ function PaperAirplaneLayer({ paused }: { paused: boolean }) {
   );
 }
 
-function AirplaneFlight({ start, mid1, mid2, end, duration }: Flight) {
-  const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
-  const nextId = useRef(0);
-  const lastSpawn = useRef(0);
+/** Quadratic ease-in-out — matches the feel of a paper dart being lofted
+ *  and then settling into its glide. */
+function easeFlight(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+}
 
-  const headings = [
-    angleBetween(start, mid1),
-    angleBetween(start, mid1),
-    angleBetween(mid1, mid2),
-    angleBetween(mid2, end),
-  ];
+interface TrailPiece {
+  id: number;
+  x: number;
+  y: number;
+  sparkle: boolean;
+}
+
+/**
+ * The flight is one smooth cubic bézier sampled per-frame with
+ * getPointAtLength, so position and heading are continuous — the plane
+ * always points along its true tangent instead of lurching between
+ * waypoint headings.
+ */
+function AirplaneFlight({ start, mid1, mid2, end, duration }: Flight) {
+  const x = useMotionValue(start.x);
+  const y = useMotionValue(start.y);
+  const rotate = useMotionValue(angleBetween(start, mid1));
+  const opacity = useMotionValue(0);
+  const shadowY = useTransform(y, (v) => v + 16);
+  const shadowOpacity = useTransform(opacity, (v) => v * 0.35);
+
+  const [trail, setTrail] = useState<TrailPiece[]>([]);
+  const trailId = useRef(0);
+
+  useEffect(() => {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute(
+      "d",
+      `M ${start.x} ${start.y} C ${mid1.x} ${mid1.y}, ${mid2.x} ${mid2.y}, ${end.x} ${end.y}`
+    );
+    const total = path.getTotalLength();
+    const t0 = performance.now();
+    let lastSpawn = 0;
+    let raf = 0;
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    const frame = (now: number) => {
+      const t = Math.min(1, (now - t0) / (duration * 1000));
+      const d = easeFlight(t) * total;
+      const p = path.getPointAtLength(d);
+      const ahead = path.getPointAtLength(Math.min(total, d + 8));
+      x.set(p.x);
+      y.set(p.y);
+      if (ahead.x !== p.x || ahead.y !== p.y) rotate.set(angleBetween(p, ahead));
+      opacity.set(t < 0.08 ? t / 0.08 : t > 0.92 ? (1 - t) / 0.08 : 1);
+
+      if (now - lastSpawn > 220 && t > 0.05 && t < 0.93) {
+        lastSpawn = now;
+        const id = trailId.current++;
+        const piece: TrailPiece = { id, x: p.x, y: p.y, sparkle: Math.random() < 0.22 };
+        setTrail((pieces) => [...pieces.slice(-8), piece]);
+        timeouts.push(setTimeout(() => setTrail((pieces) => pieces.filter((tp) => tp.id !== id)), 2400));
+      }
+
+      if (t < 1) raf = requestAnimationFrame(frame);
+    };
+
+    raf = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(raf);
+      timeouts.forEach(clearTimeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
-      {/* soft shadow, trailing slightly below */}
+      {/* soft ground shadow drifting below the plane */}
       <motion.div
-        className="absolute -z-[1] rounded-full bg-ink/10 blur-md"
-        style={{ width: 20, height: 7, translateX: "-50%", translateY: "-50%" }}
-        initial={{ x: start.x, y: start.y + 12, opacity: 0 }}
-        animate={{
-          x: [start.x, mid1.x, mid2.x, end.x],
-          y: [start.y + 12, mid1.y + 12, mid2.y + 12, end.y + 12],
-          opacity: [0, 0.4, 0.4, 0],
+        className="absolute -z-[1] rounded-full bg-ink/15 blur-md"
+        style={{
+          width: 26,
+          height: 8,
+          translateX: "-50%",
+          translateY: "-50%",
+          x,
+          y: shadowY,
+          opacity: shadowOpacity,
         }}
-        transition={{ duration, ease: "easeInOut", times: [0, 0.3, 0.7, 1] }}
       />
 
       <motion.div
         className="absolute"
-        style={{ translateX: "-50%", translateY: "-50%" }}
-        initial={{ x: start.x, y: start.y, opacity: 0, rotate: headings[0] }}
-        animate={{
-          x: [start.x, mid1.x, mid2.x, end.x],
-          y: [start.y, mid1.y, mid2.y, end.y],
-          rotate: headings,
-          opacity: [0, 1, 1, 0],
-        }}
-        transition={{ duration, ease: "easeInOut", times: [0, 0.3, 0.7, 1] }}
-        onUpdate={(latest) => {
-          const now = performance.now();
-          if (now - lastSpawn.current < 240) return;
-          lastSpawn.current = now;
-          const id = nextId.current++;
-          const x = latest.x as number;
-          const y = latest.y as number;
-          setHearts((h) => [...h.slice(-7), { id, x, y }]);
-          setTimeout(() => setHearts((h) => h.filter((t) => t.id !== id)), 2200);
-        }}
+        style={{ translateX: "-50%", translateY: "-50%", x, y, rotate, opacity }}
       >
-        {/* the plane wobbles gently on top of its heading rotation */}
+        {/* gentle wobble + bob layered on top of the true heading */}
         <motion.div
-          animate={{ rotate: [-4, 4, -4] }}
-          transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut" }}
+          animate={{ rotate: [-3.5, 3.5, -3.5], y: [0, -2.5, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
         >
           <PaperPlaneIcon />
         </motion.div>
       </motion.div>
 
-      {hearts.map((h) => (
-        <TrailHeart key={h.id} x={h.x} y={h.y} />
+      {trail.map((piece) => (
+        <TrailPieceView key={piece.id} {...piece} />
       ))}
     </>
   );
 }
 
+/**
+ * A properly folded paper dart, nose pointing right (0°): white top wing,
+ * blush-shaded underside, a visible keel fold, and a tiny heart stamped on
+ * the wing. Facet shading is what sells the "folded paper" read.
+ */
 function PaperPlaneIcon() {
+  const uid = useId();
+  const topId = `plane-top-${uid}`;
+  const bellyId = `plane-belly-${uid}`;
   return (
-    <svg width="26" height="26" viewBox="0 0 44 44" className="drop-shadow-sm">
+    <svg width="34" height="34" viewBox="0 0 48 48" className="drop-shadow-md">
+      <defs>
+        <linearGradient id={topId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#fdeef1" />
+        </linearGradient>
+        <linearGradient id={bellyId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#f6d3db" />
+          <stop offset="1" stopColor="#efbcc9" />
+        </linearGradient>
+      </defs>
+      {/* underside wing — folded away from the light */}
       <path
-        d="M40 20 L6 5 L19 20 L6 35 Z"
-        fill="var(--color-surface)"
+        d={`M46 24 L5 39 L17.5 25.5 Z`}
+        fill={`url(#${bellyId})`}
         stroke="var(--color-faint)"
-        strokeWidth="1.4"
+        strokeWidth="1.1"
         strokeLinejoin="round"
       />
-      <path d="M19 20 L40 20" stroke="var(--color-line)" strokeWidth="1.2" />
+      {/* keel — the little belly triangle hanging under the fold */}
+      <path
+        d={`M46 24 L17.5 25.5 L14 31 Z`}
+        fill="#e8aebd"
+        stroke="var(--color-faint)"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+      {/* top wing — catches the light */}
+      <path
+        d={`M46 24 L5 9 L17.5 22.5 Z`}
+        fill={`url(#${topId})`}
+        stroke="var(--color-faint)"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+      {/* center crease */}
+      <path d="M17.5 22.5 L46 24" stroke="#e5c8ce" strokeWidth="1" strokeLinecap="round" />
+      {/* tiny heart stamped on the top wing */}
+      <path
+        d="M20.5 15.6c-.9-1-2.4-.9-3 .2-.6-1.1-2.1-1.2-3-.2-.7.9-.5 2.1.4 2.9l2.6 2 2.6-2c.9-.8 1.1-2 .4-2.9Z"
+        fill="var(--color-accent)"
+        opacity="0.85"
+        transform="rotate(-8 17.5 17.5)"
+      />
     </svg>
   );
 }
 
-function TrailHeart({ x, y }: { x: number; y: number }) {
+function TrailPieceView({ x, y, sparkle }: TrailPiece) {
   const dx = useRef(rand(-14, 14)).current;
-  const size = useRef(rand(9, 15)).current;
+  const size = useRef(sparkle ? rand(8, 12) : rand(9, 15)).current;
   return (
     <motion.span
       className="absolute block"
@@ -253,15 +338,21 @@ function TrailHeart({ x, y }: { x: number; y: number }) {
         left: 0,
         top: 0,
         fontSize: size,
-        color: "var(--color-accent)",
+        color: sparkle ? "var(--color-gold)" : "var(--color-accent)",
         translateX: "-50%",
         translateY: "-50%",
       }}
-      initial={{ x, y, opacity: 0.9, scale: 0.6 }}
-      animate={{ x: x + dx, y: y - rand(36, 60), opacity: 0, scale: 1 }}
-      transition={{ duration: 2, ease: "easeOut" }}
+      initial={{ x, y, opacity: 0.9, scale: 0.5, rotate: sparkle ? -20 : 0 }}
+      animate={{
+        x: x + dx,
+        y: y - rand(36, 60),
+        opacity: 0,
+        scale: 1,
+        rotate: sparkle ? 25 : 0,
+      }}
+      transition={{ duration: 2.2, ease: "easeOut" }}
     >
-      ♥
+      {sparkle ? "✦" : "♥"}
     </motion.span>
   );
 }

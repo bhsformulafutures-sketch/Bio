@@ -152,6 +152,45 @@ export interface RandomDTO {
   submissions: RandomSubmissionDTO[];
 }
 
+// ── Game 4 · Where Am I ──────────────────────────────────────
+
+export type WhereAmIStatus = "waiting" | "solved" | "revealed";
+
+/** One typed guess in a Where Am I round's log. */
+export interface WhereAmIGuessDTO {
+  id: string;
+  text: string;
+  correct: boolean;
+  /** true when the viewer typed this guess */
+  mine: boolean;
+  createdAt: string;
+}
+
+/** A Where Am I round as seen by one viewer. The answer and any hints the
+ *  guesser hasn't earned yet are stripped server-side — no peeking. */
+export interface WhereAmIRoundDTO {
+  id: string;
+  status: WhereAmIStatus;
+  createdAt: string;
+  completedAt: string | null;
+  creator: { id: string; name: string };
+  /** true when the viewer created this round */
+  mine: boolean;
+  photoUrl: string;
+  width: number;
+  height: number;
+  /** hints the viewer may see (creator: all; guesser: one per wrong guess) */
+  unlockedHints: string[];
+  /** full guess log, oldest first */
+  guesses: WhereAmIGuessDTO[];
+  /** attempts remaining out of 4 */
+  guessesLeft: number;
+  /** hearts earned — null until the round finishes */
+  hearts: number | null;
+  /** the secret place — null until finished (creator always sees it) */
+  answer: string | null;
+}
+
 // ── Game 3 · Know Me ─────────────────────────────────────────
 
 export type KnowMeStatus = "open" | "answered" | "completed";

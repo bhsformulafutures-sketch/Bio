@@ -13,6 +13,8 @@ import type {
   NewKnowMeRound,
   NewRandom,
   NewRandomSubmission,
+  NewWhereAmIGuess,
+  NewWhereAmIRound,
   ParticipantRecord,
   PushSubscriptionRecord,
   RandomRecord,
@@ -20,7 +22,10 @@ import type {
   RoomRecord,
   Store,
   UserRecord,
+  WhereAmIGuessRecord,
+  WhereAmIRoundRecord,
 } from "./types";
+import type { WhereAmIStatus } from "../types";
 import type { KnowMeStatus } from "../types";
 
 const BUCKET = "photos";
@@ -237,6 +242,54 @@ const mapKnowMeAnswer = (a: KnowMeAnswerRow): KnowMeAnswerRecord => ({
   ratings: a.ratings,
   createdAt: a.created_at,
 });
+
+// ── Game 4 · Where Am I ──────────────────────────────────────
+
+interface WhereAmIRoundRow {
+  id: string;
+  room_id: string;
+  creator_id: string;
+  status: WhereAmIStatus;
+  photo_path: string;
+  width: number;
+  height: number;
+  answer: string;
+  hints: string[];
+  created_at: string;
+  completed_at: string | null;
+}
+interface WhereAmIGuessRow {
+  id: string;
+  round_id: string;
+  participant_id: string;
+  text: string;
+  correct: boolean;
+  created_at: string;
+}
+
+const mapWhereAmIRound = (r: WhereAmIRoundRow): WhereAmIRoundRecord => ({
+  id: r.id,
+  roomId: r.room_id,
+  creatorId: r.creator_id,
+  status: r.status,
+  photoPath: r.photo_path,
+  width: r.width,
+  height: r.height,
+  answer: r.answer,
+  hints: r.hints ?? [],
+  createdAt: r.created_at,
+  completedAt: r.completed_at,
+});
+
+const mapWhereAmIGuess = (g: WhereAmIGuessRow): WhereAmIGuessRecord => ({
+  id: g.id,
+  roundId: g.round_id,
+  participantId: g.participant_id,
+  text: g.text,
+  correct: g.correct,
+  createdAt: g.created_at,
+});
+
 
 export class SupabaseStore implements Store {
   private client: SupabaseClient;
@@ -742,6 +795,7 @@ export class SupabaseStore implements Store {
 
   fileUrl(path: string): string {
     return `${this.baseUrl}/storage/v1/object/public/${BUCKET}/${path}`;
+
   }
 
   // ── Game 3 · Know Me ───────────────────────────────────────
@@ -835,6 +889,86 @@ export class SupabaseStore implements Store {
     const { error } = await this.client
       .from("knowme_rounds")
       .update(patch)
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  // ── Game 4 · Where Am I ────────────────────────────────────
+
+  async createWhereAmIRound(data: NewWhereAmIRound): Promise<WhereAmIRoundRecord> {
+    const { data: row, error } = await this.client
+      .from("whereami_rounds")
+      .insert({
+        id: data.id,
+        room_id: data.roomId,
+        creator_id: data.creatorId,
+        photo_path: data.photoPath,
+        width: data.width,
+        height: data.height,
+        answer: data.answer,
+        hints: data.hints,
+      })
+      .select()
+      .single<WhereAmIRoundRow>();
+    if (error) throw new Error(error.message);
+    return mapWhereAmIRound(row);
+  }
+
+  async listWhereAmIRounds(roomId: string): Promise<WhereAmIRoundRecord[]> {
+    const { data, error } = await this.client
+      .from("whereami_rounds")
+      .select()
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as WhereAmIRoundRow[]).map(mapWhereAmIRound);
+  }
+
+  async getWhereAmIRound(id: string): Promise<WhereAmIRoundRecord | null> {
+    const { data, error } = await this.client
+      .from("whereami_rounds")
+      .select()
+      .eq("id", id)
+      .maybeSingle<WhereAmIRoundRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapWhereAmIRound(data) : null;
+  }
+
+  async addWhereAmIGuess(data: NewWhereAmIGuess): Promise<WhereAmIGuessRecord> {
+    const { data: row, error } = await this.client
+      .from("whereami_guesses")
+      .insert({
+        round_id: data.roundId,
+        participant_id: data.participantId,
+        text: data.text,
+        correct: data.correct,
+      })
+      .select()
+      .single<WhereAmIGuessRow>();
+    if (error) throw new Error(error.message);
+    return mapWhereAmIGuess(row);
+  }
+
+  async listWhereAmIGuesses(roundId: string): Promise<WhereAmIGuessRecord[]> {
+    const { data, error } = await this.client
+      .from("whereami_guesses")
+      .select()
+      .eq("round_id", roundId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data as WhereAmIGuessRow[]).map(mapWhereAmIGuess);
+  }
+
+  async setWhereAmIStatus(
+    id: string,
+    status: WhereAmIStatus,
+    completedAt?: string
+  ): Promise<void> {
+    const update: Record<string, unknown> = { status };
+    if (completedAt !== undefined) update.completed_at = completedAt;
+    const { error } = await this.client
+      .from("whereami_rounds")
+      .update(update)
       .eq("id", id);
     if (error) throw new Error(error.message);
   }

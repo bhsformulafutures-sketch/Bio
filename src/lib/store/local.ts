@@ -6,6 +6,8 @@ import type { MemoryKind } from "../types";
 import type {
   AlbumItemRecord,
   AlbumRecord,
+  BoothFrameRecord,
+  BoothRecord,
   ChallengeRecord,
   CreateRoomResult,
   JoinResult,
@@ -15,6 +17,7 @@ import type {
   NewKnowMeRound,
   NewRandom,
   NewRandomSubmission,
+  NewTrack,
   NewWhereAmIGuess,
   NewWhereAmIRound,
   ParticipantRecord,
@@ -23,6 +26,7 @@ import type {
   RandomSubmissionRecord,
   RoomRecord,
   Store,
+  TrackRecord,
   UserRecord,
   WhereAmIGuessRecord,
   WhereAmIRoundRecord,
@@ -46,6 +50,10 @@ interface Db {
   // ── Game 3 · Know Me ───────────────────────────────────────
   knowmeRounds: KnowMeRoundRecord[];
   knowmeAnswers: KnowMeAnswerRecord[];
+  // ── Photobooth & record player ─────────────────────────────
+  booths: BoothRecord[];
+  boothFrames: BoothFrameRecord[];
+  tracks: TrackRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -68,6 +76,10 @@ const EMPTY_DB: Db = {
   // ── Game 3 · Know Me ───────────────────────────────────────
   knowmeRounds: [],
   knowmeAnswers: [],
+  // ── Photobooth & record player ─────────────────────────────
+  booths: [],
+  boothFrames: [],
+  tracks: [],
 };
 
 /**
@@ -156,13 +168,15 @@ export class LocalStore implements Store {
         code,
         createdAt: new Date().toISOString(),
       };
+      const nowIso = new Date().toISOString();
       const participant: ParticipantRecord = {
         id: randomUUID(),
         roomId: room.id,
         userId,
         name,
         token: newToken(),
-        joinedAt: new Date().toISOString(),
+        joinedAt: nowIso,
+        lastSeenAt: nowIso,
       };
       db.rooms.push(room);
       db.participants.push(participant);
@@ -181,13 +195,15 @@ export class LocalStore implements Store {
         return { ok: false as const, reason: "already_in" as const };
       }
       if (members.length >= 2) return { ok: false as const, reason: "full" as const };
+      const nowIso = new Date().toISOString();
       const participant: ParticipantRecord = {
         id: randomUUID(),
         roomId: room.id,
         userId,
         name,
         token: newToken(),
-        joinedAt: new Date().toISOString(),
+        joinedAt: nowIso,
+        lastSeenAt: nowIso,
       };
       db.participants.push(participant);
       await this.writeDb(db);
@@ -222,6 +238,17 @@ export class LocalStore implements Store {
   async getRoomParticipants(roomId: string): Promise<ParticipantRecord[]> {
     const db = await this.readDb();
     return db.participants.filter((p) => p.roomId === roomId);
+  }
+
+  touch(participantId: string): Promise<void> {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const p = db.participants.find((x) => x.id === participantId);
+      if (p) {
+        p.lastSeenAt = new Date().toISOString();
+        await this.writeDb(db);
+      }
+    });
   }
 
   deleteRoom(roomId: string): Promise<void> {
@@ -556,6 +583,159 @@ export class LocalStore implements Store {
     return this.locked(async () => {
       const db = await this.readDb();
       db.pushSubscriptions = db.pushSubscriptions.filter((s) => s.endpoint !== endpoint);
+      await this.writeDb(db);
+    });
+  }
+
+  // ── Instant photobooth ─────────────────────────────────────
+
+  createBooth(roomId: string, initiatorId: string, shots: number) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      for (const b of db.booths) {
+        if (b.roomId === roomId && (b.status === "pending" || b.status === "live")) {
+          b.status = "cancelled";
+        }
+      }
+      const booth: BoothRecord = {
+        id: randomUUID(),
+        roomId,
+        initiatorId,
+        status: "pending",
+        shots,
+        readyIds: [initiatorId],
+        startAt: null,
+        stripPath: null,
+        createdAt: new Date().toISOString(),
+        completedAt: null,
+      };
+      db.booths.push(booth);
+      await this.writeDb(db);
+      return booth;
+    });
+  }
+
+  async getBooth(id: string): Promise<BoothRecord | null> {
+    const db = await this.readDb();
+    return db.booths.find((b) => b.id === id) ?? null;
+  }
+
+  async getActiveBooth(roomId: string): Promise<BoothRecord | null> {
+    const db = await this.readDb();
+    return (
+      db.booths
+        .filter(
+          (b) =>
+            b.roomId === roomId && (b.status === "pending" || b.status === "live")
+        )
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
+    );
+  }
+
+  async listBooths(roomId: string): Promise<BoothRecord[]> {
+    const db = await this.readDb();
+    return db.booths
+      .filter((b) => b.roomId === roomId && b.status === "completed")
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  readyBooth(
+    boothId: string,
+    participantId: string,
+    requiredIds: string[],
+    startDelayMs: number
+  ) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const booth = db.booths.find((b) => b.id === boothId);
+      if (!booth) return null;
+      if (!booth.readyIds.includes(participantId)) booth.readyIds.push(participantId);
+      const everyoneReady = requiredIds.every((id) => booth.readyIds.includes(id));
+      if (everyoneReady && booth.startAt === null && booth.status === "pending") {
+        booth.startAt = Date.now() + startDelayMs;
+        booth.status = "live";
+      }
+      await this.writeDb(db);
+      return booth;
+    });
+  }
+
+  addBoothFrame(boothId: string, participantId: string, idx: number, filePath: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const existing = db.boothFrames.find(
+        (f) => f.boothId === boothId && f.participantId === participantId && f.idx === idx
+      );
+      if (existing) {
+        existing.path = filePath;
+      } else {
+        db.boothFrames.push({
+          id: randomUUID(),
+          boothId,
+          participantId,
+          idx,
+          path: filePath,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      await this.writeDb(db);
+    });
+  }
+
+  async listBoothFrames(boothId: string): Promise<BoothFrameRecord[]> {
+    const db = await this.readDb();
+    return db.boothFrames
+      .filter((f) => f.boothId === boothId)
+      .sort((a, b) => a.idx - b.idx);
+  }
+
+  setBoothStrip(boothId: string, stripPath: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const booth = db.booths.find((b) => b.id === boothId);
+      if (booth && booth.status !== "completed") {
+        booth.stripPath = stripPath;
+        booth.status = "completed";
+        booth.completedAt = new Date().toISOString();
+        await this.writeDb(db);
+      }
+    });
+  }
+
+  cancelBooth(boothId: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const booth = db.booths.find((b) => b.id === boothId);
+      if (booth && (booth.status === "pending" || booth.status === "live")) {
+        booth.status = "cancelled";
+        await this.writeDb(db);
+      }
+    });
+  }
+
+  // ── Record player ──────────────────────────────────────────
+
+  createTrack(data: NewTrack) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const track: TrackRecord = { ...data, createdAt: new Date().toISOString() };
+      db.tracks.push(track);
+      await this.writeDb(db);
+      return track;
+    });
+  }
+
+  async listTracks(roomId: string): Promise<TrackRecord[]> {
+    const db = await this.readDb();
+    return db.tracks
+      .filter((t) => t.roomId === roomId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  deleteTrack(id: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.tracks = db.tracks.filter((t) => t.id !== id);
       await this.writeDb(db);
     });
   }

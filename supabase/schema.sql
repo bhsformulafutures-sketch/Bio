@@ -27,8 +27,12 @@ create table if not exists participants (
   user_id     uuid references users(id) on delete set null,
   name        text not null,
   token       text not null unique,
-  joined_at   timestamptz not null default now()
+  joined_at   timestamptz not null default now(),
+  last_seen_at timestamptz
 );
+
+-- Upgrading an existing database? Add the presence column:
+alter table participants add column if not exists last_seen_at timestamptz;
 
 -- Challenges: photo guessing games
 create table if not exists challenges (
@@ -233,3 +237,65 @@ drop policy if exists "service_access_knowme_rounds" on knowme_rounds;
 create policy "service_access_knowme_rounds" on knowme_rounds for all to service_role using (true) with check (true);
 drop policy if exists "service_access_knowme_answers" on knowme_answers;
 create policy "service_access_knowme_answers" on knowme_answers for all to service_role using (true) with check (true);
+
+-- ── Instant photobooth ──────────────────────────────────────
+
+create table if not exists booths (
+  id           uuid primary key default gen_random_uuid(),
+  room_id      uuid not null references rooms(id) on delete cascade,
+  initiator_id uuid not null references participants(id) on delete cascade,
+  status       text not null default 'pending'
+               check (status in ('pending', 'live', 'completed', 'cancelled')),
+  shots        integer not null default 4,
+  ready_ids    jsonb not null default '[]'::jsonb,
+  start_at     bigint,
+  strip_path   text,
+  created_at   timestamptz not null default now(),
+  completed_at timestamptz
+);
+
+create table if not exists booth_frames (
+  id             uuid primary key default gen_random_uuid(),
+  booth_id       uuid not null references booths(id) on delete cascade,
+  participant_id uuid not null references participants(id) on delete cascade,
+  idx            integer not null,
+  path           text not null,
+  created_at     timestamptz not null default now(),
+  unique (booth_id, participant_id, idx)
+);
+
+create index if not exists booths_room_idx on booths(room_id, created_at desc);
+create index if not exists booth_frames_booth_idx on booth_frames(booth_id);
+
+alter table booths enable row level security;
+alter table booth_frames enable row level security;
+
+drop policy if exists "service_access_booths" on booths;
+create policy "service_access_booths" on booths for all to service_role using (true) with check (true);
+drop policy if exists "service_access_booth_frames" on booth_frames;
+create policy "service_access_booth_frames" on booth_frames for all to service_role using (true) with check (true);
+
+-- ── Record player ───────────────────────────────────────────
+
+create table if not exists tracks (
+  id           uuid primary key default gen_random_uuid(),
+  room_id      uuid not null references rooms(id) on delete cascade,
+  added_by_id  uuid not null references participants(id) on delete cascade,
+  kind         text not null default 'queue'
+               check (kind in ('queue', 'dedication')),
+  title        text not null,
+  artist       text,
+  url          text not null,
+  provider     text not null default 'other',
+  embed_url    text,
+  lyric        text,
+  note_path    text,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists tracks_room_idx on tracks(room_id, created_at desc);
+
+alter table tracks enable row level security;
+
+drop policy if exists "service_access_tracks" on tracks;
+create policy "service_access_tracks" on tracks for all to service_role using (true) with check (true);

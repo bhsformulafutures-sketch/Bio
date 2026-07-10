@@ -2,11 +2,13 @@ import type {
   AlbumDetailDTO,
   AlbumMemoryDTO,
   AlbumSummaryDTO,
+  BoothDTO,
   ChallengeDTO,
   KnowMeRoundDTO,
   RandomDTO,
   RandomSubmissionDTO,
   SessionDTO,
+  TrackDTO,
   UserDTO,
   WhereAmIGuessDTO,
   WhereAmIRoundDTO,
@@ -15,16 +17,27 @@ import { getStore } from "./store";
 import type {
   AlbumItemRecord,
   AlbumRecord,
+  BoothFrameRecord,
+  BoothRecord,
   ChallengeRecord,
   KnowMeAnswerRecord,
   KnowMeRoundRecord,
   RandomRecord,
   RandomSubmissionRecord,
   SessionRecord,
+  TrackRecord,
   UserRecord,
   WhereAmIGuessRecord,
   WhereAmIRoundRecord,
 } from "./store/types";
+
+/** A partner counts as "online" if seen within this window. */
+export const PRESENCE_WINDOW_MS = 35_000;
+
+export function isOnline(lastSeenAt: string | null | undefined): boolean {
+  if (!lastSeenAt) return false;
+  return Date.now() - new Date(lastSeenAt).getTime() < PRESENCE_WINDOW_MS;
+}
 export function userToDTO(user: UserRecord): UserDTO {
   return {
     id: user.id,
@@ -54,6 +67,56 @@ export async function sessionToDTO(session: SessionRecord): Promise<SessionDTO> 
     partner: session.partner
       ? { id: session.partner.id, name: session.partner.name, avatar: partnerAvatar }
       : null,
+    partnerOnline: isOnline(session.partner?.lastSeenAt),
+  };
+}
+
+export function boothToDTO(
+  booth: BoothRecord,
+  frames: BoothFrameRecord[],
+  session: SessionRecord
+): BoothDTO {
+  const store = getStore();
+  return {
+    id: booth.id,
+    status: booth.status,
+    shots: booth.shots,
+    startAt: booth.startAt,
+    initiatorId: booth.initiatorId,
+    mine: booth.initiatorId === session.participant.id,
+    readyIds: booth.readyIds,
+    stripUrl: booth.stripPath ? store.fileUrl(booth.stripPath) : null,
+    frames: frames.map((f) => ({
+      participantId: f.participantId,
+      idx: f.idx,
+      url: store.fileUrl(f.path),
+    })),
+    createdAt: booth.createdAt,
+    completedAt: booth.completedAt,
+  };
+}
+
+export function trackToDTO(track: TrackRecord, session: SessionRecord): TrackDTO {
+  const store = getStore();
+  const fromMe = track.addedById === session.participant.id;
+  const addedByName = fromMe
+    ? session.participant.name
+    : session.partner && track.addedById === session.partner.id
+      ? session.partner.name
+      : "Partner";
+  return {
+    id: track.id,
+    kind: track.kind,
+    title: track.title,
+    artist: track.artist,
+    url: track.url,
+    provider: track.provider,
+    embedUrl: track.embedUrl,
+    lyric: track.lyric,
+    noteUrl: track.notePath ? store.fileUrl(track.notePath) : null,
+    fromMe,
+    addedByName,
+    createdAt: track.createdAt,
   };
 }
 

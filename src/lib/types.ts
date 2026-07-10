@@ -17,6 +17,50 @@ export interface SessionDTO {
   participant: { id: string; name: string };
   room: { id: string; code: string; createdAt: string };
   partner: { id: string; name: string; avatar: string | null } | null;
+  /** True when the partner has been active within the presence window. */
+  partnerOnline: boolean;
+}
+
+export type BoothStatus = "pending" | "live" | "completed" | "cancelled";
+
+export interface BoothFrameDTO {
+  participantId: string;
+  idx: number;
+  url: string;
+}
+
+/** A photobooth session as one participant sees it. */
+export interface BoothDTO {
+  id: string;
+  status: BoothStatus;
+  shots: number;
+  startAt: number | null;
+  initiatorId: string;
+  /** true when the viewer started this booth */
+  mine: boolean;
+  readyIds: string[];
+  stripUrl: string | null;
+  frames: BoothFrameDTO[];
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export type TrackKind = "queue" | "dedication";
+
+/** A song on the room record player, or a dedication with lyric + note. */
+export interface TrackDTO {
+  id: string;
+  kind: TrackKind;
+  title: string;
+  artist: string | null;
+  url: string;
+  provider: string;
+  embedUrl: string | null;
+  lyric: string | null;
+  noteUrl: string | null;
+  fromMe: boolean;
+  addedByName: string;
+  createdAt: string;
 }
 
 /** Onboarding state — drives which step the client shows. */

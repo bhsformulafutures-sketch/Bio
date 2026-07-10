@@ -29,6 +29,68 @@ export interface ParticipantRecord {
   name: string;
   token: string;
   joinedAt: string;
+  /** Updated on every /api/me poll — powers "partner is online" presence. */
+  lastSeenAt: string | null;
+}
+
+export type BoothStatus = "pending" | "live" | "completed" | "cancelled";
+
+/** A live two-camera photobooth session shared by both partners. */
+export interface BoothRecord {
+  id: string;
+  roomId: string;
+  initiatorId: string;
+  status: BoothStatus;
+  shots: number;
+  /** Participant ids that have opened the booth with a camera ready. */
+  readyIds: string[];
+  /** Server epoch-ms anchor both devices count down from (null until live). */
+  startAt: number | null;
+  stripPath: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+/** One captured frame — each participant contributes `shots` of them. */
+export interface BoothFrameRecord {
+  id: string;
+  boothId: string;
+  participantId: string;
+  idx: number;
+  path: string;
+  createdAt: string;
+}
+
+export type TrackKind = "queue" | "dedication";
+
+/** A song on the room record player, or a personal dedication. */
+export interface TrackRecord {
+  id: string;
+  roomId: string;
+  addedById: string;
+  kind: TrackKind;
+  title: string;
+  artist: string | null;
+  url: string;
+  provider: string;
+  embedUrl: string | null;
+  lyric: string | null;
+  notePath: string | null;
+  createdAt: string;
+}
+
+export interface NewTrack {
+  id: string;
+  roomId: string;
+  addedById: string;
+  kind: TrackKind;
+  title: string;
+  artist: string | null;
+  url: string;
+  provider: string;
+  embedUrl: string | null;
+  lyric: string | null;
+  notePath: string | null;
 }
 
 export interface ChallengeRecord {
@@ -246,8 +308,36 @@ export interface Store {
   getMembership(userId: string, roomId: string): Promise<ParticipantRecord | null>;
   listMemberships(userId: string): Promise<ParticipantRecord[]>;
   getRoomParticipants(roomId: string): Promise<ParticipantRecord[]>;
+  /** Record that a participant is currently active (presence heartbeat). */
+  touch(participantId: string): Promise<void>;
   /** Permanently removes the room, its participants, challenges and files. */
   deleteRoom(roomId: string): Promise<void>;
+
+  // ── Instant photobooth ─────────────────────────────────────
+  createBooth(roomId: string, initiatorId: string, shots: number): Promise<BoothRecord>;
+  getBooth(id: string): Promise<BoothRecord | null>;
+  getActiveBooth(roomId: string): Promise<BoothRecord | null>;
+  listBooths(roomId: string): Promise<BoothRecord[]>;
+  readyBooth(
+    boothId: string,
+    participantId: string,
+    requiredIds: string[],
+    startDelayMs: number
+  ): Promise<BoothRecord | null>;
+  addBoothFrame(
+    boothId: string,
+    participantId: string,
+    idx: number,
+    path: string
+  ): Promise<void>;
+  listBoothFrames(boothId: string): Promise<BoothFrameRecord[]>;
+  setBoothStrip(boothId: string, stripPath: string): Promise<void>;
+  cancelBooth(boothId: string): Promise<void>;
+
+  // ── Record player ──────────────────────────────────────────
+  createTrack(data: NewTrack): Promise<TrackRecord>;
+  listTracks(roomId: string): Promise<TrackRecord[]>;
+  deleteTrack(id: string): Promise<void>;
 
   // ── Game 1 · Other Half ────────────────────────────────────
   createChallenge(data: NewChallenge): Promise<ChallengeRecord>;

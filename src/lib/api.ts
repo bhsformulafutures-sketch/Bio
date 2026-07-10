@@ -2,6 +2,7 @@ import type {
   AlbumDetailDTO,
   AlbumSummaryDTO,
   AuthStateDTO,
+  BoothDTO,
   ChallengeDTO,
   KnowMeAnswerPair,
   KnowMeRoundDTO,
@@ -9,8 +10,14 @@ import type {
   RandomDTO,
   RoomSummaryDTO,
   SessionDTO,
+  TrackDTO,
   WhereAmIRoundDTO,
 } from "./types";
+
+export interface BoothResponse {
+  booth: BoothDTO | null;
+  serverNow?: number;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -193,4 +200,48 @@ export const api = {
 
   rateKnowMe: (id: string, ratings: boolean[]) =>
     request<{ round: KnowMeRoundDTO }>(`/api/knowme/${id}/ratings`, json({ ratings })),
+
+  // ── Instant photobooth ─────────────────────────────────────
+  startBooth: (shots?: number) =>
+    request<BoothResponse>("/api/booth", json({ shots })),
+
+  activeBooth: () => request<BoothResponse>("/api/booth/active"),
+
+  getBooth: (id: string) => request<BoothResponse>(`/api/booth/${id}`),
+
+  readyBooth: (id: string) =>
+    request<BoothResponse>(`/api/booth/${id}/ready`, { method: "POST" }),
+
+  uploadBoothFrame: (id: string, idx: number, frame: Blob) => {
+    const form = new FormData();
+    form.append("idx", String(idx));
+    form.append("frame", frame, `frame-${idx}.jpg`);
+    return request<{ ok: true }>(`/api/booth/${id}/frame`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  uploadBoothStrip: (id: string, strip: Blob) => {
+    const form = new FormData();
+    form.append("strip", strip, "strip.jpg");
+    return request<{ booth: BoothDTO }>(`/api/booth/${id}/strip`, {
+      method: "POST",
+      body: form,
+    });
+  },
+
+  cancelBooth: (id: string) =>
+    request<{ ok: true }>(`/api/booth/${id}/cancel`, { method: "POST" }),
+
+  listBooths: () => request<{ booths: BoothDTO[] }>("/api/booths"),
+
+  // ── Record player ──────────────────────────────────────────
+  listTracks: () => request<{ tracks: TrackDTO[] }>("/api/tracks"),
+
+  addTrack: (form: FormData) =>
+    request<{ track: TrackDTO }>("/api/tracks", { method: "POST", body: form }),
+
+  deleteTrack: (id: string) =>
+    request<{ ok: true }>(`/api/tracks/${id}`, { method: "DELETE" }),
 };

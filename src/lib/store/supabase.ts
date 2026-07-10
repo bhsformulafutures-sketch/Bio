@@ -4,6 +4,9 @@ import type { MemoryKind } from "../types";
 import type {
   AlbumItemRecord,
   AlbumRecord,
+  BoothFrameRecord,
+  BoothRecord,
+  BoothStatus,
   ChallengeRecord,
   CreateRoomResult,
   JoinResult,
@@ -13,6 +16,7 @@ import type {
   NewKnowMeRound,
   NewRandom,
   NewRandomSubmission,
+  NewTrack,
   NewWhereAmIGuess,
   NewWhereAmIRound,
   ParticipantRecord,
@@ -21,6 +25,8 @@ import type {
   RandomSubmissionRecord,
   RoomRecord,
   Store,
+  TrackKind,
+  TrackRecord,
   UserRecord,
   WhereAmIGuessRecord,
   WhereAmIRoundRecord,
@@ -51,6 +57,41 @@ interface ParticipantRow {
   name: string;
   token: string;
   joined_at: string;
+  last_seen_at: string | null;
+}
+interface BoothRow {
+  id: string;
+  room_id: string;
+  initiator_id: string;
+  status: BoothStatus;
+  shots: number;
+  ready_ids: string[];
+  start_at: number | null;
+  strip_path: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+interface BoothFrameRow {
+  id: string;
+  booth_id: string;
+  participant_id: string;
+  idx: number;
+  path: string;
+  created_at: string;
+}
+interface TrackRow {
+  id: string;
+  room_id: string;
+  added_by_id: string;
+  kind: TrackKind;
+  title: string;
+  artist: string | null;
+  url: string;
+  provider: string;
+  embed_url: string | null;
+  lyric: string | null;
+  note_path: string | null;
+  created_at: string;
 }
 interface ChallengeRow {
   id: string;
@@ -161,6 +202,44 @@ const mapParticipant = (p: ParticipantRow): ParticipantRecord => ({
   name: p.name,
   token: p.token,
   joinedAt: p.joined_at,
+  lastSeenAt: p.last_seen_at ?? null,
+});
+
+const mapBooth = (b: BoothRow): BoothRecord => ({
+  id: b.id,
+  roomId: b.room_id,
+  initiatorId: b.initiator_id,
+  status: b.status,
+  shots: b.shots,
+  readyIds: b.ready_ids ?? [],
+  startAt: b.start_at,
+  stripPath: b.strip_path,
+  createdAt: b.created_at,
+  completedAt: b.completed_at,
+});
+
+const mapBoothFrame = (f: BoothFrameRow): BoothFrameRecord => ({
+  id: f.id,
+  boothId: f.booth_id,
+  participantId: f.participant_id,
+  idx: f.idx,
+  path: f.path,
+  createdAt: f.created_at,
+});
+
+const mapTrack = (t: TrackRow): TrackRecord => ({
+  id: t.id,
+  roomId: t.room_id,
+  addedById: t.added_by_id,
+  kind: t.kind,
+  title: t.title,
+  artist: t.artist,
+  url: t.url,
+  provider: t.provider,
+  embedUrl: t.embed_url,
+  lyric: t.lyric,
+  notePath: t.note_path,
+  createdAt: t.created_at,
 });
 
 const mapChallenge = (c: ChallengeRow): ChallengeRecord => ({
@@ -450,6 +529,13 @@ export class SupabaseStore implements Store {
       .eq("room_id", roomId);
     if (error) throw new Error(error.message);
     return (data as ParticipantRow[]).map(mapParticipant);
+  }
+
+  async touch(participantId: string): Promise<void> {
+    await this.client
+      .from("participants")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("id", participantId);
   }
 
   async deleteRoom(roomId: string): Promise<void> {
@@ -970,6 +1056,173 @@ export class SupabaseStore implements Store {
       .from("whereami_rounds")
       .update(update)
       .eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  // ── Instant photobooth ─────────────────────────────────────
+
+  async createBooth(roomId: string, initiatorId: string, shots: number) {
+    await this.client
+      .from("booths")
+      .update({ status: "cancelled" })
+      .eq("room_id", roomId)
+      .in("status", ["pending", "live"]);
+    const { data, error } = await this.client
+      .from("booths")
+      .insert({
+        room_id: roomId,
+        initiator_id: initiatorId,
+        status: "pending",
+        shots,
+        ready_ids: [initiatorId],
+      })
+      .select()
+      .single<BoothRow>();
+    if (error) throw new Error(error.message);
+    return mapBooth(data);
+  }
+
+  async getBooth(id: string): Promise<BoothRecord | null> {
+    const { data, error } = await this.client
+      .from("booths")
+      .select()
+      .eq("id", id)
+      .maybeSingle<BoothRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapBooth(data) : null;
+  }
+
+  async getActiveBooth(roomId: string): Promise<BoothRecord | null> {
+    const { data, error } = await this.client
+      .from("booths")
+      .select()
+      .eq("room_id", roomId)
+      .in("status", ["pending", "live"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<BoothRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapBooth(data) : null;
+  }
+
+  async listBooths(roomId: string): Promise<BoothRecord[]> {
+    const { data, error } = await this.client
+      .from("booths")
+      .select()
+      .eq("room_id", roomId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as BoothRow[]).map(mapBooth);
+  }
+
+  async readyBooth(
+    boothId: string,
+    participantId: string,
+    requiredIds: string[],
+    startDelayMs: number
+  ): Promise<BoothRecord | null> {
+    const booth = await this.getBooth(boothId);
+    if (!booth) return null;
+    const readyIds = booth.readyIds.includes(participantId)
+      ? booth.readyIds
+      : [...booth.readyIds, participantId];
+    const everyoneReady = requiredIds.every((id) => readyIds.includes(id));
+    const patch: Partial<BoothRow> = { ready_ids: readyIds };
+    if (everyoneReady && booth.startAt === null && booth.status === "pending") {
+      patch.start_at = Date.now() + startDelayMs;
+      patch.status = "live";
+    }
+    const { data, error } = await this.client
+      .from("booths")
+      .update(patch)
+      .eq("id", boothId)
+      .select()
+      .single<BoothRow>();
+    if (error) throw new Error(error.message);
+    return mapBooth(data);
+  }
+
+  async addBoothFrame(
+    boothId: string,
+    participantId: string,
+    idx: number,
+    path: string
+  ): Promise<void> {
+    const { error } = await this.client.from("booth_frames").upsert(
+      { booth_id: boothId, participant_id: participantId, idx, path },
+      { onConflict: "booth_id,participant_id,idx" }
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  async listBoothFrames(boothId: string): Promise<BoothFrameRecord[]> {
+    const { data, error } = await this.client
+      .from("booth_frames")
+      .select()
+      .eq("booth_id", boothId)
+      .order("idx", { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data as BoothFrameRow[]).map(mapBoothFrame);
+  }
+
+  async setBoothStrip(boothId: string, stripPath: string): Promise<void> {
+    const { error } = await this.client
+      .from("booths")
+      .update({
+        strip_path: stripPath,
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", boothId)
+      .neq("status", "completed");
+    if (error) throw new Error(error.message);
+  }
+
+  async cancelBooth(boothId: string): Promise<void> {
+    await this.client
+      .from("booths")
+      .update({ status: "cancelled" })
+      .eq("id", boothId)
+      .in("status", ["pending", "live"]);
+  }
+
+  // ── Record player ──────────────────────────────────────────
+
+  async createTrack(data: NewTrack): Promise<TrackRecord> {
+    const { data: row, error } = await this.client
+      .from("tracks")
+      .insert({
+        id: data.id,
+        room_id: data.roomId,
+        added_by_id: data.addedById,
+        kind: data.kind,
+        title: data.title,
+        artist: data.artist,
+        url: data.url,
+        provider: data.provider,
+        embed_url: data.embedUrl,
+        lyric: data.lyric,
+        note_path: data.notePath,
+      })
+      .select()
+      .single<TrackRow>();
+    if (error) throw new Error(error.message);
+    return mapTrack(row);
+  }
+
+  async listTracks(roomId: string): Promise<TrackRecord[]> {
+    const { data, error } = await this.client
+      .from("tracks")
+      .select()
+      .eq("room_id", roomId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data as TrackRow[]).map(mapTrack);
+  }
+
+  async deleteTrack(id: string): Promise<void> {
+    const { error } = await this.client.from("tracks").delete().eq("id", id);
     if (error) throw new Error(error.message);
   }
 }

@@ -182,6 +182,87 @@ export async function paintActions(
   flush();
 }
 
+/** Grab a mirrored, center-cropped square JPEG from a live <video>. */
+export function captureVideoFrame(
+  video: HTMLVideoElement,
+  size = 520
+): Promise<Blob> {
+  const vw = video.videoWidth || size;
+  const vh = video.videoHeight || size;
+  const crop = Math.min(vw, vh);
+  const sx = (vw - crop) / 2;
+  const sy = (vh - crop) / 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingQuality = "high";
+  ctx.translate(size, 0);
+  ctx.scale(-1, 1); // mirror horizontally to match the selfie preview
+  ctx.drawImage(video, sx, sy, crop, crop, 0, 0, size, size);
+  return canvasToBlob(canvas, "image/jpeg", 0.85);
+}
+
+/** Compose a classic booth strip: N rows, each a pair (left | right). */
+export async function compositeBoothStrip(
+  leftUrls: (string | undefined)[],
+  rightUrls: (string | undefined)[],
+  caption: string
+): Promise<Blob> {
+  const CELL = 500;
+  const PAD = 22;
+  const FOOTER = 92;
+  const rows = Math.max(leftUrls.length, rightUrls.length);
+  const width = PAD * 3 + CELL * 2;
+  const height = PAD + rows * (CELL + PAD) + FOOTER;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = "#fdf6f3";
+  ctx.fillRect(0, 0, width, height);
+
+  const urls = [...leftUrls, ...rightUrls].filter(Boolean) as string[];
+  const imgs = new Map<string, HTMLImageElement>();
+  await Promise.all(
+    [...new Set(urls)].map(async (u) => imgs.set(u, await loadImage(u)))
+  );
+
+  const drawCell = (url: string | undefined, x: number, y: number) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, CELL, CELL);
+    ctx.clip();
+    const img = url ? imgs.get(url) : undefined;
+    if (img) ctx.drawImage(img, x, y, CELL, CELL);
+    else {
+      ctx.fillStyle = "#f1e6ea";
+      ctx.fillRect(x, y, CELL, CELL);
+    }
+    ctx.restore();
+  };
+
+  for (let r = 0; r < rows; r++) {
+    const y = PAD + r * (CELL + PAD);
+    drawCell(leftUrls[r], PAD, y);
+    drawCell(rightUrls[r], PAD * 2 + CELL, y);
+  }
+
+  const footerY = PAD + rows * (CELL + PAD);
+  ctx.fillStyle = "#2c2230";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "600 34px Georgia, 'Times New Roman', serif";
+  ctx.fillText("the other half", width / 2, footerY + FOOTER / 2 - 12);
+  ctx.fillStyle = "#6d6172";
+  ctx.font = "400 22px -apple-system, Arial, sans-serif";
+  ctx.fillText(caption, width / 2, footerY + FOOTER / 2 + 22);
+
+  return canvasToBlob(canvas, "image/jpeg", 0.9);
+}
+
 /** Deterministic merge: transparent drawing layered over the original. */
 export async function compositeMerged(
   originalUrl: string,

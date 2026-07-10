@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
   AlbumSummaryDTO,
+  BoothDTO,
   ChallengeDTO,
   KnowMeRoundDTO,
   RandomDTO,
@@ -13,7 +14,7 @@ import type {
 } from "@/lib/types";
 import { api, ApiError } from "@/lib/api";
 import { Header } from "@/components/Header";
-import { Avatar, Button, Card, Skeleton } from "@/components/ui";
+import { Avatar, Button, Card, Skeleton, Spinner } from "@/components/ui";
 import { GalleryCard, formatDate } from "@/components/GalleryCard";
 import { RandomCard } from "@/components/RandomCard";
 import { KnowMeCard } from "@/components/KnowMeCard";
@@ -23,6 +24,7 @@ import { NotificationToggle } from "@/components/NotificationToggle";
 import { toast } from "@/components/Toast";
 import { Pressable } from "@/components/motion/Pressable";
 import { BlurImage } from "@/components/motion/BlurImage";
+import { BoothIcon, MusicIcon } from "@/components/icons";
 
 const POLL_MS = 12_000;
 
@@ -34,17 +36,22 @@ export default function HomePage() {
   const [knowme, setKnowme] = useState<KnowMeRoundDTO[] | null>(null);
   const [whereami, setWhereami] = useState<WhereAmIRoundDTO[] | null>(null);
   const [albums, setAlbums] = useState<AlbumSummaryDTO[] | null>(null);
+  const [activeBooth, setActiveBooth] = useState<BoothDTO | null>(null);
+  const [booths, setBooths] = useState<BoothDTO[]>([]);
   const [starting, setStarting] = useState(false);
+  const [startingBooth, setStartingBooth] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [me, list, rand, km, wai, alb] = await Promise.all([
+      const [me, list, rand, km, wai, alb, active, boothList] = await Promise.all([
         api.me(),
         api.listChallenges(),
         api.listRandoms(),
         api.listKnowMe(),
         api.listWhereAmI(),
         api.listAlbums(),
+        api.activeBooth().catch(() => ({ booth: null })),
+        api.listBooths().catch(() => ({ booths: [] })),
       ]);
       setSession(me);
       setChallenges(list.challenges);
@@ -52,10 +59,23 @@ export default function HomePage() {
       setKnowme(km.rounds);
       setWhereami(wai.rounds);
       setAlbums(alb.albums);
+      setActiveBooth(active.booth);
+      setBooths(boothList.booths);
     } catch (error) {
       if ((error as { status?: number }).status === 401) router.replace("/");
     }
   }, [router]);
+
+  const startBooth = async () => {
+    setStartingBooth(true);
+    try {
+      const { booth } = await api.startBooth();
+      if (booth) router.push(`/booth/${booth.id}`);
+    } catch (error) {
+      toast(error instanceof ApiError ? error.message : "Couldn't start the booth.", "error");
+      setStartingBooth(false);
+    }
+  };
 
   useEffect(() => {
     refresh();
@@ -160,6 +180,30 @@ export default function HomePage() {
           </Card>
         )}
 
+        {activeBooth && activeBooth.status !== "completed" && (
+          <div className="animate-fade-up" style={{ animationDelay: nextDelay() }}>
+            <Pressable>
+              <Link
+                href={`/booth/${activeBooth.id}`}
+                className="flex items-center gap-3 rounded-2xl bg-accent px-4 py-3.5 text-white shadow-lift"
+              >
+                <BoothIcon className="size-6 shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold">
+                    {activeBooth.mine
+                      ? "Your photobooth is waiting"
+                      : `${partnerName ?? "Your partner"} started a photobooth`}
+                  </span>
+                  <span className="block text-xs text-white/80">
+                    Tap to jump in — you snap together
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-semibold">Join →</span>
+              </Link>
+            </Pressable>
+          </div>
+        )}
+
         <div className="animate-fade-up" style={{ animationDelay: nextDelay() }}>
           <NotificationToggle />
         </div>
@@ -230,6 +274,41 @@ export default function HomePage() {
                   {openKnowMe
                     ? "A quiz round is in motion."
                     : "Five questions. How well do they really know you?"}
+                </span>
+              </button>
+            </Pressable>
+            <Pressable className="h-full">
+              <button
+                onClick={startBooth}
+                disabled={!session.partnerOnline || startingBooth}
+                className="group relative flex h-full w-full flex-col items-start gap-2 overflow-hidden rounded-3xl
+                  bg-gradient-to-br from-accent-soft to-surface p-4 text-left shadow-card
+                  transition-shadow hover:shadow-lift disabled:opacity-60"
+              >
+                {startingBooth ? (
+                  <Spinner className="size-7 text-accent" />
+                ) : (
+                  <BoothIcon className="size-7 text-accent transition-transform group-hover:scale-110" />
+                )}
+                <span className="font-display text-lg font-bold leading-tight">Photobooth</span>
+                <span className="text-xs text-soft">
+                  {session.partnerOnline
+                    ? "Snap a strip together, live."
+                    : `${partnerName ?? "Your partner"} needs to be online.`}
+                </span>
+              </button>
+            </Pressable>
+            <Pressable className="h-full">
+              <button
+                onClick={() => router.push("/music")}
+                className="group relative flex h-full w-full flex-col items-start gap-2 overflow-hidden rounded-3xl
+                  bg-gradient-to-br from-dusk-soft to-surface p-4 text-left shadow-card
+                  transition-shadow hover:shadow-lift"
+              >
+                <MusicIcon className="size-7 text-dusk transition-transform group-hover:scale-110" />
+                <span className="font-display text-lg font-bold leading-tight">Record player</span>
+                <span className="text-xs text-soft">
+                  Cue up songs & send dedications.
                 </span>
               </button>
             </Pressable>
@@ -377,6 +456,33 @@ export default function HomePage() {
           <div className="animate-fade-up" style={{ animationDelay: nextDelay() }}>
             <AlbumStrip albums={albums} onCreated={refresh} />
           </div>
+        )}
+
+        {booths.length > 0 && (
+          <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-soft">Photobooth</h2>
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {booths.map(
+                (b) =>
+                  b.stripUrl && (
+                    <Link
+                      key={b.id}
+                      href={`/booth/${b.id}`}
+                      className="shrink-0 overflow-hidden rounded-xl bg-surface shadow-card transition-transform hover:-translate-y-0.5"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={b.stripUrl}
+                        alt="Photobooth strip"
+                        loading="lazy"
+                        className="h-40 w-auto"
+                        draggable={false}
+                      />
+                    </Link>
+                  )
+              )}
+            </div>
+          </section>
         )}
 
         <section className="animate-fade-up flex flex-col gap-3" style={{ animationDelay: nextDelay() }}>

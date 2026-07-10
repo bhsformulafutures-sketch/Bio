@@ -23,7 +23,9 @@ export function ResultView({
   challenge: ChallengeDTO;
   nudge?: boolean;
 }) {
-  const [view, setView] = useState<View>("compare");
+  // Open on the full merged image so the whole picture shows at once;
+  // Compare (the split slider) stays available as a tab.
+  const [view, setView] = useState<View>("merged");
   const [mergedUrl, setMergedUrl] = useState(challenge.mergedUrl);
   const healing = useRef(false);
 

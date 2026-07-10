@@ -9,17 +9,17 @@ type Wallpaper = { id: string; label: string; swatch: string };
 
 /** Keep in sync with the body[data-wallpaper] rules in globals.css. */
 const WALLPAPERS: Wallpaper[] = [
-  { id: "paper", label: "Paper", swatch: "#faf6f0" },
+  { id: "paper", label: "Paper", swatch: "#fdf6f3" },
   {
     id: "linen",
     label: "Linen",
-    swatch: "radial-gradient(#ece3d6 1.5px, #faf6f0 1.5px) 0 0 / 8px 8px",
+    swatch: "radial-gradient(#f1e6ea 1.5px, #fdf6f3 1.5px) 0 0 / 8px 8px",
   },
-  { id: "blush", label: "Blush", swatch: "linear-gradient(150deg,#fdeadf,#f7efe6)" },
-  { id: "sky", label: "Sky", swatch: "linear-gradient(150deg,#e8f1fb,#faf6f0)" },
-  { id: "sage", label: "Sage", swatch: "linear-gradient(150deg,#e7f1e6,#faf6f0)" },
-  { id: "lavender", label: "Lavender", swatch: "linear-gradient(150deg,#efe9fb,#faf6f0)" },
-  { id: "dawn", label: "Dawn", swatch: "linear-gradient(150deg,#fbe9ec,#eef3fb)" },
+  { id: "blush", label: "Blush", swatch: "linear-gradient(150deg,#fddfe7,#fdeef1)" },
+  { id: "sky", label: "Sky", swatch: "linear-gradient(150deg,#e6eefb,#fdf6f3)" },
+  { id: "sage", label: "Sage", swatch: "linear-gradient(150deg,#e4f1ea,#fdf6f3)" },
+  { id: "lavender", label: "Lavender", swatch: "linear-gradient(150deg,#ece9fb,#fdf6f3)" },
+  { id: "dawn", label: "Dawn", swatch: "linear-gradient(150deg,#fbe4ec,#ece9fb)" },
 ];
 
 /** Apply a wallpaper to <body> (paper is the bare default, no attribute). */

@@ -148,6 +148,33 @@ body::before {
     radial-gradient(90% 50% at 100% 108%, rgb(238 236 251 / 0.8), transparent 60%);
 }
 
+/* Wallpapers — when one is chosen it replaces the default dusk wash; the
+   ambient motion layer still drifts on top. Cards/surfaces stay light so
+   text keeps its contrast. Keep in sync with WallpaperPicker. */
+body[data-wallpaper]::before {
+  display: none;
+}
+body[data-wallpaper="linen"] {
+  background-color: var(--color-paper);
+  background-image: radial-gradient(var(--color-line) 1px, transparent 1px);
+  background-size: 15px 15px;
+}
+body[data-wallpaper="blush"] {
+  background: linear-gradient(160deg, #fddfe7 0%, #fdeef1 55%, #fdf6f3 100%) fixed;
+}
+body[data-wallpaper="sky"] {
+  background: linear-gradient(160deg, #e6eefb 0%, #f2f0fb 55%, #fdf6f3 100%) fixed;
+}
+body[data-wallpaper="sage"] {
+  background: linear-gradient(160deg, #e4f1ea 0%, #f2f2ee 55%, #fdf6f3 100%) fixed;
+}
+body[data-wallpaper="lavender"] {
+  background: linear-gradient(160deg, #ece9fb 0%, #f4f0f8 55%, #fdf6f3 100%) fixed;
+}
+body[data-wallpaper="dawn"] {
+  background: linear-gradient(160deg, #fbe4ec 0%, #fdeee6 45%, #ece9fb 100%) fixed;
+}
+
 ::selection {
   background: var(--color-accent-soft);
   color: var(--color-accent-deep);

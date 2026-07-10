@@ -11,6 +11,8 @@ import { toast } from "./Toast";
 import { spring } from "@/lib/motion";
 import { useAmbientGate } from "@/lib/ambient";
 import { normalizeRoomCode, roomCodeError, ROOM_CODE_MAX } from "@/lib/room-code";
+import { WallpaperPicker } from "./WallpaperPicker";
+import { CopyIcon, KeyIcon, PlusIcon, TrashIcon } from "./icons";
 
 export function Logo({ className = "text-xl" }: { className?: string }) {
   return (
@@ -27,7 +29,10 @@ export function Header({ session }: { session: SessionDTO | null }) {
         <Link href="/home" aria-label="Home">
           <Logo />
         </Link>
-        {session && <RoomSwitcher session={session} />}
+        <div className="flex items-center gap-2">
+          <WallpaperPicker />
+          {session && <RoomSwitcher session={session} />}
+        </div>
       </div>
     </header>
   );
@@ -250,28 +255,29 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
               </div>
             ) : (
               <>
-                <MenuItem onClick={() => { setJoinCode(""); setEntry("create"); }} disabled={busy !== null}>
-                  ➕ New room
+                <MenuItem onClick={() => { setJoinCode(""); setEntry("create"); }} disabled={busy !== null} icon={<PlusIcon className="size-4" />}>
+                  New room
                 </MenuItem>
-                <MenuItem onClick={() => { setJoinCode(""); setEntry("join"); }} disabled={busy !== null}>
-                  🔑 Join with a code
+                <MenuItem onClick={() => { setJoinCode(""); setEntry("join"); }} disabled={busy !== null} icon={<KeyIcon className="size-4" />}>
+                  Join with a code
                 </MenuItem>
-                <MenuItem onClick={copyCode} disabled={busy !== null}>
-                  📋 Copy this room&apos;s code
+                <MenuItem onClick={copyCode} disabled={busy !== null} icon={<CopyIcon className="size-4" />}>
+                  Copy this room&apos;s code
                 </MenuItem>
                 <MenuItem
                   onClick={deleteActive}
                   busy={busy === "delete"}
                   disabled={busy !== null}
                   danger
+                  icon={<TrashIcon className="size-4" />}
                 >
                   {confirmDelete
                     ? "Really delete? Every memory goes, for both of you"
-                    : "🗑️ Delete this room"}
+                    : "Delete this room"}
                 </MenuItem>
                 <div className="my-1 border-t border-line/70" />
                 <MenuItem onClick={signOut} busy={busy === "signout"} disabled={busy !== null}>
-                  👋 Sign out
+                  Sign out
                 </MenuItem>
               </>
             )}
@@ -287,23 +293,26 @@ function MenuItem({
   disabled,
   busy = false,
   danger = false,
+  icon,
   children,
 }: {
   onClick: () => void;
   disabled?: boolean;
   busy?: boolean;
   danger?: boolean;
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium
+      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium
         transition-colors disabled:opacity-60 ${
           danger ? "text-red-600 hover:bg-red-50" : "text-ink hover:bg-paper"
         }`}
     >
+      {icon && <span className="shrink-0 opacity-70">{icon}</span>}
       <span className="min-w-0 flex-1">{children}</span>
       {busy && <Spinner className="size-4" />}
     </button>

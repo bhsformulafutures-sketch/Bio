@@ -25,6 +25,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="relative min-h-dvh">
+        {/* Apply the saved wallpaper before paint to avoid a flash. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var w=localStorage.getItem('oh-wallpaper');if(w&&w!=='paper')document.body.dataset.wallpaper=w;}catch(e){}",
+          }}
+        />
         <MotionProvider>
           <AmbientBackground />
           <AmbientDelight />

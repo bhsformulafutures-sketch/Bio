@@ -57,7 +57,7 @@ export interface PlayerDTO {
   fromMe: boolean;
 }
 
-/** A song on the room record player, or a dedication with lyric + note. */
+/** A song on the room radio, or a dedication with lyric + note. */
 export interface TrackDTO {
   id: string;
   kind: TrackKind;

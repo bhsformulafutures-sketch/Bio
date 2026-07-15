@@ -722,7 +722,7 @@ export class LocalStore implements Store {
     });
   }
 
-  // ── Record player ──────────────────────────────────────────
+  // ── Radio (tracks + shared player) ─────────────────────────
 
   createTrack(data: NewTrack) {
     return this.locked(async () => {

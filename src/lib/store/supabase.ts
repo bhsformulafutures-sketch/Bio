@@ -1201,7 +1201,7 @@ export class SupabaseStore implements Store {
       .in("status", ["pending", "live"]);
   }
 
-  // ── Record player ──────────────────────────────────────────
+  // ── Radio (tracks + shared player) ─────────────────────────
 
   async createTrack(data: NewTrack): Promise<TrackRecord> {
     const { data: row, error } = await this.client

@@ -63,7 +63,7 @@ export interface BoothFrameRecord {
 
 export type TrackKind = "queue" | "dedication";
 
-/** A song on the room record player, or a personal dedication. */
+/** A song on the room radio, or a personal dedication. */
 export interface TrackRecord {
   id: string;
   roomId: string;

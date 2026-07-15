@@ -1,5 +1,9 @@
 # Site Overhaul Plan — "The Other Half"
 
+> **Status: implemented.** All five phases below landed on this branch
+> (see the phase-by-phase commits). Kept as the design record for the
+> "Paper & Ink" language and the radio architecture.
+
 ## Context
 
 The app has grown from two mini-games into a six-feature private world for

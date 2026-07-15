@@ -7,19 +7,41 @@ const STORAGE_KEY = "oh-wallpaper";
 
 type Wallpaper = { id: string; label: string; swatch: string };
 
-/** Keep in sync with the body[data-wallpaper] rules in globals.css. */
+/** Paper stocks. Keep in sync with the body[data-wallpaper] rules in globals.css. */
 const WALLPAPERS: Wallpaper[] = [
-  { id: "paper", label: "Paper", swatch: "#fdf6f3" },
+  { id: "paper", label: "Paper", swatch: "#f6f0e4" },
   {
-    id: "linen",
-    label: "Linen",
-    swatch: "radial-gradient(#f1e6ea 1.5px, #fdf6f3 1.5px) 0 0 / 8px 8px",
+    id: "grid",
+    label: "Graph paper",
+    swatch:
+      "linear-gradient(rgb(59 47 39 / 0.10) 1px, transparent 1px) 0 0 / 8px 8px, linear-gradient(90deg, rgb(59 47 39 / 0.10) 1px, transparent 1px) 0 0 / 8px 8px, #f6f0e4",
   },
-  { id: "blush", label: "Blush", swatch: "linear-gradient(150deg,#fddfe7,#fdeef1)" },
-  { id: "sky", label: "Sky", swatch: "linear-gradient(150deg,#e6eefb,#fdf6f3)" },
-  { id: "sage", label: "Sage", swatch: "linear-gradient(150deg,#e4f1ea,#fdf6f3)" },
-  { id: "lavender", label: "Lavender", swatch: "linear-gradient(150deg,#ece9fb,#fdf6f3)" },
-  { id: "dawn", label: "Dawn", swatch: "linear-gradient(150deg,#fbe4ec,#ece9fb)" },
+  {
+    id: "ruled",
+    label: "Ruled",
+    swatch: "linear-gradient(rgb(85 103 159 / 0.25) 1px, #f8f2e7 1px) 0 0 / 100% 7px",
+  },
+  {
+    id: "kraft",
+    label: "Kraft",
+    swatch: "radial-gradient(rgb(59 47 39 / 0.10) 1px, #eadfc9 1px) 0 0 / 6px 6px",
+  },
+  {
+    id: "cork",
+    label: "Corkboard",
+    swatch: "radial-gradient(rgb(140 108 74 / 0.35) 1.5px, #e6d3b4 1.5px) 0 0 / 7px 7px",
+  },
+  {
+    id: "blueprint",
+    label: "Blueprint",
+    swatch:
+      "linear-gradient(rgb(85 103 159 / 0.3) 1px, transparent 1px) 0 0 / 8px 8px, linear-gradient(90deg, rgb(85 103 159 / 0.3) 1px, transparent 1px) 0 0 / 8px 8px, #e0e5f0",
+  },
+  {
+    id: "blush",
+    label: "Blush",
+    swatch: "radial-gradient(rgb(201 79 79 / 0.15) 1px, #f6e4dc 1px) 0 0 / 6px 6px",
+  },
 ];
 
 /** Apply a wallpaper to <body> (paper is the bare default, no attribute). */
@@ -33,9 +55,20 @@ export function WallpaperPicker() {
   const [current, setCurrent] = useState("paper");
   const panelRef = useRef<HTMLDivElement>(null);
 
-  /* Reflect whatever the no-flash script already applied on load. */
+  /* Reflect whatever the no-flash script already applied on load. Stored ids
+     from the old pastel set (linen/sky/…) fall back to plain paper. */
   useEffect(() => {
-    setCurrent(document.body.dataset.wallpaper || "paper");
+    const applied = document.body.dataset.wallpaper || "paper";
+    if (WALLPAPERS.some((w) => w.id === applied)) {
+      setCurrent(applied);
+    } else {
+      delete document.body.dataset.wallpaper;
+      try {
+        localStorage.setItem(STORAGE_KEY, "paper");
+      } catch {
+        /* fine */
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -71,7 +104,7 @@ export function WallpaperPicker() {
       </button>
 
       {open && (
-        <div className="animate-pop absolute right-0 top-full z-50 mt-2 w-64 rounded-2xl border border-line bg-surface p-3 shadow-lift">
+        <div className="animate-pop absolute right-0 top-full z-50 mt-2 w-64 rounded-lg border border-line bg-surface p-3 shadow-lift">
           <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wide text-faint">
             Wallpaper
           </p>
@@ -82,7 +115,7 @@ export function WallpaperPicker() {
                 onClick={() => choose(w.id)}
                 aria-label={w.label}
                 title={w.label}
-                className={`relative flex aspect-square items-center justify-center rounded-xl border transition-all active:scale-95 ${
+                className={`relative flex aspect-square items-center justify-center rounded-md border transition-all active:scale-95 ${
                   current === w.id
                     ? "border-ink ring-2 ring-ink/15"
                     : "border-line hover:border-faint"

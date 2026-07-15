@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { motion, type HTMLMotionProps } from "motion/react";
 import { spring } from "@/lib/motion";
 
@@ -10,11 +10,11 @@ type ButtonVariant = "primary" | "soft" | "ghost" | "outline" | "dusk";
    the whole app shares one spring feel. */
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-white shadow-card hover:bg-accent-deep hover:shadow-lift disabled:hover:bg-accent",
-  soft: "bg-accent-soft text-accent-deep hover:bg-[#fbe1e7]",
-  dusk: "bg-dusk-soft text-dusk hover:bg-[#e5e2f7]",
-  ghost: "text-soft hover:bg-line/60 hover:text-ink",
-  outline: "border border-line bg-surface text-ink hover:border-faint",
+    "bg-accent text-[#fff8f0] border border-accent-deep/50 shadow-card hover:bg-accent-deep disabled:hover:bg-accent",
+  soft: "bg-accent-soft text-accent-deep border border-accent/15 hover:bg-[#f0d5c9]",
+  dusk: "bg-dusk-soft text-dusk border border-dusk/20 hover:bg-[#d7dae8]",
+  ghost: "text-soft hover:bg-line/50 hover:text-ink",
+  outline: "border border-line bg-surface text-ink shadow-card hover:border-faint",
 };
 
 /* Motion's own drag/animation handlers collide with the DOM ones, so drop them. */
@@ -56,7 +56,7 @@ export function Button({
       whileHover={isDisabled ? undefined : { scale: 1.025, y: -1.5 }}
       whileTap={isDisabled ? undefined : { scale: 0.96, y: 0 }}
       transition={spring.snappy}
-      className={`relative inline-flex items-center justify-center gap-2 rounded-full font-semibold
+      className={`relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold
         transition-colors duration-200 disabled:opacity-50
         ${VARIANTS[variant]} ${sizes[size]} ${className}`}
     >
@@ -93,6 +93,7 @@ type CardProps = HTMLMotionProps<"div"> & {
   children?: ReactNode;
 };
 
+/** A sheet of paper on the desk: hairline border, hard offset shadow. */
 export function Card({
   children,
   className = "",
@@ -103,9 +104,9 @@ export function Card({
   return (
     <motion.div
       {...rest}
-      whileHover={interactive ? { y: -4, scale: 1.006 } : undefined}
+      whileHover={interactive ? { y: -3, scale: 1.004 } : undefined}
       transition={spring.gentle}
-      className={`rounded-3xl bg-surface shadow-card ${
+      className={`rounded-lg border border-line bg-surface shadow-card ${
         interactive ? "cursor-pointer hover:shadow-lift" : ""
       } ${breathe ? "animate-breathe" : ""} ${className}`}
     >
@@ -114,19 +115,155 @@ export function Card({
   );
 }
 
+type PanelProps = CardProps & {
+  /** Sawtooth torn-paper top edge — use at most once per viewport. */
+  torn?: boolean;
+};
+
+/** The default scrapbook container. `Card` with an optional torn top edge. */
+export function Panel({ torn = false, className = "", ...rest }: PanelProps) {
+  return (
+    <Card
+      {...rest}
+      className={`${torn ? "torn-top rounded-t-none border-t-0 pt-3" : ""} ${className}`}
+    />
+  );
+}
+
+/** A punched admission ticket — the game-entry surface. */
+export function Ticket({
+  children,
+  className = "",
+  tilt = 0,
+  ...rest
+}: CardProps & { tilt?: number }) {
+  return (
+    <motion.div
+      {...rest}
+      whileHover={{ y: -3, rotate: 0, scale: 1.01 }}
+      transition={spring.gentle}
+      style={{ rotate: tilt, ...(rest.style as CSSProperties) }}
+      className={`relative cursor-pointer rounded-lg border border-line bg-surface shadow-card
+        hover:shadow-lift ${className}`}
+    >
+      {/* punched notches */}
+      <span
+        aria-hidden
+        className="absolute -left-[7px] top-1/2 size-3.5 -translate-y-1/2 rounded-full border-r border-line bg-paper"
+      />
+      <span
+        aria-hidden
+        className="absolute -right-[7px] top-1/2 size-3.5 -translate-y-1/2 rounded-full border-l border-line bg-paper"
+      />
+      {children}
+    </motion.div>
+  );
+}
+
+const TAPE_COLORS = {
+  pink: "var(--color-tape-pink)",
+  blue: "var(--color-tape-blue)",
+  mint: "var(--color-tape-mint)",
+  gold: "var(--color-tape-gold)",
+} as const;
+
+/**
+ * A translucent washi-tape strip, for "taping" photos and notes to the page.
+ * Decorative only — absolutely position it over the corner/top of its parent.
+ */
+export function TapeStrip({
+  color = "pink",
+  className = "",
+  angle = -4,
+}: {
+  color?: keyof typeof TAPE_COLORS;
+  className?: string;
+  angle?: number;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute z-10 block h-6 w-16 opacity-60 ${className}`}
+      style={{
+        transform: `rotate(${angle}deg)`,
+        background: `linear-gradient(100deg, transparent 0.5%, ${TAPE_COLORS[color]} 1.5%, ${TAPE_COLORS[color]} 98.5%, transparent 99.5%)`,
+        clipPath:
+          "polygon(0 12%, 4% 0, 100% 4%, 96% 46%, 100% 88%, 3% 100%, 6% 55%)",
+        boxShadow: "0 1px 2px rgb(59 47 39 / 0.10)",
+      }}
+    />
+  );
+}
+
+/** A white-framed instant photo with a handwritten caption strip. */
+export function Polaroid({
+  children,
+  caption,
+  tilt = 0,
+  className = "",
+  ...rest
+}: CardProps & { caption?: ReactNode; tilt?: number }) {
+  return (
+    <motion.div
+      {...rest}
+      initial={false}
+      whileHover={{ rotate: 0, y: -5, scale: 1.02, zIndex: 5 }}
+      transition={spring.gentle}
+      style={{ rotate: tilt, ...(rest.style as CSSProperties) }}
+      className={`border border-line/70 bg-[#fffef9] p-1.5 pb-1 shadow-card
+        transition-shadow duration-200 hover:shadow-lift ${className}`}
+    >
+      {children}
+      {caption !== undefined && (
+        <div className="flex min-h-7 items-center px-1 py-0.5 font-hand text-[15px] leading-tight text-soft">
+          {caption}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/** A small tilted paper label — the scrapbook Badge. */
+export function Sticker({
+  children,
+  tone = "soft",
+  tilt = 0,
+  className = "",
+}: {
+  children: ReactNode;
+  tone?: "soft" | "dusk" | "gold" | "line";
+  tilt?: number;
+  className?: string;
+}) {
+  const tones = {
+    soft: "bg-accent-soft text-accent-deep border-accent/20",
+    dusk: "bg-dusk-soft text-dusk border-dusk/20",
+    gold: "bg-[#f4e5c6] text-[#8c6516] border-gold/40",
+    line: "bg-paper text-soft border-line",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 font-hand text-sm ${tones[tone]} ${className}`}
+      style={tilt ? { transform: `rotate(${tilt}deg)` } : undefined}
+    >
+      {children}
+    </span>
+  );
+}
+
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   const { className = "", ...rest } = props;
   return (
     <input
       {...rest}
-      className={`h-12 w-full rounded-2xl border border-line bg-surface px-4 text-[16px] text-ink
-        placeholder:text-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20
+      className={`h-12 w-full rounded-md border border-line bg-surface px-4 text-[16px] text-ink
+        placeholder:text-faint focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/15
         transition-colors ${className}`}
     />
   );
 }
 
-/** A person's emoji avatar in a soft ring. Falls back to their initial. */
+/** A person's emoji avatar on a paper disc. Falls back to their initial. */
 export function Avatar({
   avatar,
   name,
@@ -138,8 +275,8 @@ export function Avatar({
 }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full
-        bg-gradient-to-br from-accent-soft to-dusk-soft font-semibold text-ink ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border
+        border-line bg-kraft/60 font-semibold text-ink ${className}`}
       aria-hidden
     >
       {avatar || (name ? name.charAt(0).toUpperCase() : "·")}
@@ -149,10 +286,10 @@ export function Avatar({
 
 /** A shimmering placeholder block used while content loads. */
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`skeleton rounded-2xl ${className}`} />;
+  return <div className={`skeleton rounded-md ${className}`} />;
 }
 
-/** A small rounded label. */
+/** A small squared label. */
 export function Badge({
   children,
   tone = "soft",
@@ -163,14 +300,14 @@ export function Badge({
   className?: string;
 }) {
   const tones = {
-    soft: "bg-accent-soft text-accent-deep",
-    dusk: "bg-dusk-soft text-dusk",
-    gold: "bg-[#fdf1dc] text-[#a9781f]",
-    line: "bg-line text-soft",
+    soft: "bg-accent-soft text-accent-deep border-accent/15",
+    dusk: "bg-dusk-soft text-dusk border-dusk/15",
+    gold: "bg-[#f4e5c6] text-[#8c6516] border-gold/30",
+    line: "bg-paper text-soft border-line",
   };
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${tones[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${tones[tone]} ${className}`}
     >
       {children}
     </span>

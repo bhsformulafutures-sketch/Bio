@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import type { WhereAmIRoundDTO } from "@/lib/types";
 import { Badge } from "./ui";
 import { BlurImage } from "./motion/BlurImage";
-import { tiltFor } from "./GalleryCard";
+import { tiltFor } from "@/lib/tilt";
 import { spring } from "@/lib/motion";
 
 /** A row of four hearts, filled up to `earned`. */

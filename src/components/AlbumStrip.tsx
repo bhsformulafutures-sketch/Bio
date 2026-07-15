@@ -9,7 +9,7 @@ import { BlurImage } from "@/components/motion/BlurImage";
 import { Button, TextInput } from "@/components/ui";
 import { toast } from "@/components/Toast";
 import { spring, tween } from "@/lib/motion";
-import { tiltFor } from "@/components/GalleryCard";
+import { tiltFor } from "@/lib/tilt";
 
 /** Horizontal shelf of shared albums, with an inline "new album" creator. */
 export function AlbumStrip({

@@ -1,31 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  /* ── "Dusk & Blush" — a warm, dreamy palette for two ──────────
-     Warm near-white paper, a deep plum ink, a rose primary, and a
-     periwinkle "dusk" secondary for a little twilight romance. Chosen
-     deliberately away from the cream + terracotta default. */
-  --color-paper: #fdf6f3;
-  --color-surface: #ffffff;
-  --color-ink: #2c2230;
-  --color-soft: #6d6172;
-  --color-faint: #a99fac;
-  --color-line: #f1e6ea;
+  /* ── "Paper & Ink" — the analog scrapbook palette ──────────
+     Warm cream paper, sepia ink, a marker-red accent and a fountain-pen
+     blue secondary. Surfaces sit on the page with pencil hairlines and
+     hard offset shadows (paper on paper), never soft glows. */
+  --color-paper: #f6f0e4;
+  --color-kraft: #eadfc9;
+  --color-surface: #fffdf6;
+  --color-ink: #3b2f27;
+  --color-soft: #77685c;
+  --color-faint: #a5978a;
+  --color-line: #ddcfba;
 
-  --color-accent: #e8607d;       /* rose */
-  --color-accent-deep: #d24a68;
-  --color-accent-soft: #fdeef1;
+  --color-accent: #c94f4f;       /* marker red */
+  --color-accent-deep: #a93d3d;
+  --color-accent-soft: #f5e0d7;
 
-  --color-dusk: #7b74d6;         /* periwinkle secondary */
-  --color-dusk-soft: #eeecfb;
-  --color-gold: #f0b34a;         /* warm sparkle for delight */
-  --color-mint: #e7f1ec;
+  --color-dusk: #55679f;         /* fountain-pen blue secondary */
+  --color-dusk-soft: #e3e5ee;
+  --color-gold: #d9a441;         /* warm sparkle for delight */
+  --color-mint: #e4ead9;
 
-  --font-display: "Georgia", "Times New Roman", serif;
+  /* Washi-tape tints for the TapeStrip primitive */
+  --color-tape-pink: #e8a0a8;
+  --color-tape-blue: #9cb2d8;
+  --color-tape-mint: #a9c8ad;
+  --color-tape-gold: #e0bd7e;
 
-  --shadow-card: 0 1px 2px rgb(44 34 48 / 0.04), 0 8px 24px -12px rgb(44 34 48 / 0.14);
-  --shadow-lift: 0 2px 4px rgb(44 34 48 / 0.06), 0 18px 44px -16px rgb(226 74 104 / 0.22);
-  --shadow-glow: 0 0 0 4px rgb(232 96 125 / 0.12);
+  --font-display: var(--font-instrument), "Georgia", "Times New Roman", serif;
+  --font-hand: var(--font-caveat), "Segoe Print", "Bradley Hand", cursive;
+
+  --shadow-card: 0 1px 0 rgb(59 47 39 / 0.05), 2px 3px 0 rgb(59 47 39 / 0.07);
+  --shadow-lift: 1px 2px 0 rgb(59 47 39 / 0.05), 4px 6px 0 rgb(59 47 39 / 0.09);
+  --shadow-glow: 0 0 0 3px rgb(201 79 79 / 0.14);
 
   --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-fade-in: fade-in 0.4s ease both;
@@ -135,8 +143,8 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* A soft, ambient dusk wash behind everything — warm at the top,
-   a faint periwinkle glow drifting up from the bottom. */
+/* A soft light wash across the page — sunlight on a desk, warm at the
+   top, a faint kraft shadow toward the bottom. */
 body::before {
   content: "";
   position: fixed;
@@ -144,35 +152,55 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(120% 60% at 50% -10%, rgb(253 238 241 / 0.9), transparent 60%),
-    radial-gradient(90% 50% at 100% 108%, rgb(238 236 251 / 0.8), transparent 60%);
+    radial-gradient(120% 60% at 50% -10%, rgb(255 252 243 / 0.9), transparent 60%),
+    radial-gradient(90% 50% at 100% 108%, rgb(234 223 201 / 0.55), transparent 60%);
 }
 
-/* Wallpapers — when one is chosen it replaces the default dusk wash; the
-   ambient motion layer still drifts on top. Cards/surfaces stay light so
-   text keeps its contrast. Keep in sync with WallpaperPicker. */
+/* Wallpapers — paper stocks. When one is chosen it replaces the default
+   light wash; the ambient motion layer still drifts on top. Cards stay
+   light so text keeps its contrast. Keep in sync with WallpaperPicker. */
 body[data-wallpaper]::before {
   display: none;
 }
-body[data-wallpaper="linen"] {
+body[data-wallpaper="grid"] {
   background-color: var(--color-paper);
-  background-image: radial-gradient(var(--color-line) 1px, transparent 1px);
-  background-size: 15px 15px;
+  background-image:
+    linear-gradient(rgb(59 47 39 / 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(59 47 39 / 0.055) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+body[data-wallpaper="ruled"] {
+  background-color: #f8f2e7;
+  background-image:
+    linear-gradient(90deg, transparent 31px, rgb(201 79 79 / 0.28) 31px, rgb(201 79 79 / 0.28) 32px, transparent 32px),
+    linear-gradient(rgb(85 103 159 / 0.14) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 30px;
+  background-attachment: fixed;
+}
+body[data-wallpaper="kraft"] {
+  background-color: var(--color-kraft);
+  background-image: radial-gradient(rgb(59 47 39 / 0.05) 1px, transparent 1px);
+  background-size: 11px 11px;
+}
+body[data-wallpaper="cork"] {
+  background-color: #e6d3b4;
+  background-image:
+    radial-gradient(rgb(140 108 74 / 0.18) 1.5px, transparent 1.5px),
+    radial-gradient(rgb(255 250 238 / 0.35) 1px, transparent 1px);
+  background-size: 17px 17px, 23px 23px;
+  background-position: 0 0, 8px 12px;
+}
+body[data-wallpaper="blueprint"] {
+  background-color: #e0e5f0;
+  background-image:
+    linear-gradient(rgb(85 103 159 / 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(85 103 159 / 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 body[data-wallpaper="blush"] {
-  background: linear-gradient(160deg, #fddfe7 0%, #fdeef1 55%, #fdf6f3 100%) fixed;
-}
-body[data-wallpaper="sky"] {
-  background: linear-gradient(160deg, #e6eefb 0%, #f2f0fb 55%, #fdf6f3 100%) fixed;
-}
-body[data-wallpaper="sage"] {
-  background: linear-gradient(160deg, #e4f1ea 0%, #f2f2ee 55%, #fdf6f3 100%) fixed;
-}
-body[data-wallpaper="lavender"] {
-  background: linear-gradient(160deg, #ece9fb 0%, #f4f0f8 55%, #fdf6f3 100%) fixed;
-}
-body[data-wallpaper="dawn"] {
-  background: linear-gradient(160deg, #fbe4ec 0%, #fdeee6 45%, #ece9fb 100%) fixed;
+  background-color: #f6e4dc;
+  background-image: radial-gradient(rgb(201 79 79 / 0.07) 1px, transparent 1px);
+  background-size: 13px 13px;
 }
 
 ::selection {
@@ -182,7 +210,24 @@ body[data-wallpaper="dawn"] {
 
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  /* Instrument Serif ships a single 400 weight — never synthesize bold. */
+  font-weight: 400;
+  font-synthesis-weight: none;
+  letter-spacing: 0.005em;
+}
+
+.font-hand {
+  font-family: var(--font-hand);
+}
+
+/* A sawtooth "torn paper" top edge for Panel(torn). */
+.torn-top {
+  clip-path: polygon(
+    0 7px, 3% 2px, 7% 8px, 11% 3px, 15% 7px, 19% 1px, 24% 6px, 28% 2px,
+    33% 8px, 37% 3px, 42% 7px, 46% 2px, 51% 6px, 55% 1px, 60% 7px, 64% 3px,
+    69% 8px, 73% 2px, 78% 6px, 82% 1px, 87% 7px, 91% 3px, 96% 8px, 100% 2px,
+    100% 100%, 0 100%
+  );
 }
 
 /* Drawing surface must own all touch gestures */

@@ -1,5 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Caveat, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+
+/* Self-hosted at build time — no runtime font requests. */
+const instrument = Instrument_Serif({
+  weight: "400",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+  variable: "--font-instrument",
+});
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
+});
 import { Toaster } from "@/components/Toast";
 import { MotionProvider } from "@/components/motion/MotionProvider";
 import { AmbientBackground } from "@/components/motion/AmbientBackground";
@@ -12,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fdf6f3",
+  themeColor: "#f6f0e4",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -23,7 +36,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${instrument.variable} ${caveat.variable}`}>
       <body className="relative min-h-dvh">
         {/* Apply the saved wallpaper before paint to avoid a flash. */}
         <script

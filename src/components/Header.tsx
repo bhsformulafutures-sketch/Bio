@@ -188,7 +188,7 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
       {open && (
         <div
           className="animate-pop absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden
-            rounded-2xl border border-line bg-surface shadow-lift"
+            rounded-lg border border-line bg-surface shadow-lift"
         >
           <p className="px-4 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wide text-faint">
             Your rooms
@@ -240,14 +240,14 @@ function RoomSwitcher({ session }: { session: SessionDTO }) {
                   autoCapitalize="characters"
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   onKeyDown={(e) => e.key === "Enter" && (entry === "create" ? createRoom() : joinRoom())}
-                  className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-paper px-3
+                  className="h-10 min-w-0 flex-1 rounded-md border border-line bg-paper px-3
                     text-center font-mono text-sm uppercase tracking-[0.25em] text-ink
                     placeholder:tracking-normal placeholder:text-faint focus:border-accent focus:outline-none"
                 />
                 <button
                   onClick={entry === "create" ? createRoom : joinRoom}
                   disabled={busy !== null}
-                  className="flex h-10 items-center gap-1.5 rounded-xl bg-accent px-3.5 text-sm
+                  className="flex h-10 items-center gap-1.5 rounded-md bg-accent px-3.5 text-sm
                     font-semibold text-white transition-all hover:bg-accent-deep active:scale-95 disabled:opacity-60"
                 >
                   {busy !== null ? <Spinner className="size-4" /> : entry === "create" ? "Create" : "Join"}
@@ -307,7 +307,7 @@ function MenuItem({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium
+      className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-sm font-medium
         transition-colors disabled:opacity-60 ${
           danger ? "text-red-600 hover:bg-red-50" : "text-ink hover:bg-paper"
         }`}

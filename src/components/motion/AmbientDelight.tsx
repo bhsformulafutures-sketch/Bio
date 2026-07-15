@@ -283,12 +283,12 @@ function PaperPlaneIcon() {
     <svg width="34" height="34" viewBox="0 0 48 48" className="drop-shadow-md">
       <defs>
         <linearGradient id={topId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ffffff" />
-          <stop offset="1" stopColor="#fdeef1" />
+          <stop offset="0" stopColor="#fffdf6" />
+          <stop offset="1" stopColor="#f4ebda" />
         </linearGradient>
         <linearGradient id={bellyId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#f6d3db" />
-          <stop offset="1" stopColor="#efbcc9" />
+          <stop offset="0" stopColor="#e9ddc4" />
+          <stop offset="1" stopColor="#ddccab" />
         </linearGradient>
       </defs>
       {/* underside wing — folded away from the light */}
@@ -302,7 +302,7 @@ function PaperPlaneIcon() {
       {/* keel — the little belly triangle hanging under the fold */}
       <path
         d={`M46 24 L17.5 25.5 L14 31 Z`}
-        fill="#e8aebd"
+        fill="#d5c19b"
         stroke="var(--color-faint)"
         strokeWidth="1"
         strokeLinejoin="round"
@@ -316,7 +316,7 @@ function PaperPlaneIcon() {
         strokeLinejoin="round"
       />
       {/* center crease */}
-      <path d="M17.5 22.5 L46 24" stroke="#e5c8ce" strokeWidth="1" strokeLinecap="round" />
+      <path d="M17.5 22.5 L46 24" stroke="#d8c7a5" strokeWidth="1" strokeLinecap="round" />
       {/* tiny heart stamped on the top wing */}
       <path
         d="M20.5 15.6c-.9-1-2.4-.9-3 .2-.6-1.1-2.1-1.2-3-.2-.7.9-.5 2.1.4 2.9l2.6 2 2.6-2c.9-.8 1.1-2 .4-2.9Z"

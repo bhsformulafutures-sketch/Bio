@@ -44,28 +44,10 @@ export function PencilIcon({ className }: IconProps) {
   );
 }
 
-export function HourglassIcon({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <path d="M7 4h10M7 20h10M8 4c0 4 8 4 8 8s-8 4-8 8M16 4c0 4-8 4-8 8s8 4 8 8" />
-    </Svg>
-  );
-}
-
 export function HeartIcon({ className }: IconProps) {
   return (
     <Svg className={className}>
       <path d="M12 20s-7-4.35-7-9.5A3.5 3.5 0 0 1 12 8a3.5 3.5 0 0 1 7 2.5C19 15.65 12 20 12 20Z" />
-    </Svg>
-  );
-}
-
-export function ImageIcon({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <rect x="4" y="5" width="16" height="14" rx="2" />
-      <circle cx="9" cy="10" r="1.4" />
-      <path d="M5 17l4.5-4.5a1.5 1.5 0 0 1 2 0L19 19" />
     </Svg>
   );
 }
@@ -100,24 +82,6 @@ export function TrashIcon({ className }: IconProps) {
   return (
     <Svg className={className}>
       <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12" />
-    </Svg>
-  );
-}
-
-export function EyeIcon({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
-      <circle cx="12" cy="12" r="3" />
-    </Svg>
-  );
-}
-
-export function SparkleIcon({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6L12 4Z" />
-      <path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z" />
     </Svg>
   );
 }
@@ -202,12 +166,3 @@ export function CheckIcon({ className }: IconProps) {
   );
 }
 
-export function ShuffleIcon({ className }: IconProps) {
-  return (
-    <Svg className={className}>
-      <path d="M4 7h3.5c1 0 1.9.5 2.5 1.3L14 15.7c.6.8 1.5 1.3 2.5 1.3H20" />
-      <path d="M4 17h3.5c1 0 1.9-.5 2.5-1.3l.7-1M13.3 8.3l.7-1c.6-.8 1.5-1.3 2.5-1.3H20" />
-      <path d="M17.5 4.5 20 7l-2.5 2.5M17.5 14.5 20 17l-2.5 2.5" />
-    </Svg>
-  );
-}

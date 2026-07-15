@@ -5,7 +5,8 @@ import { motion } from "motion/react";
 import type { KnowMeRoundDTO } from "@/lib/types";
 import { knowMeVerdict } from "@/lib/games/knowme/verdict";
 import { Badge } from "./ui";
-import { formatDate, tiltFor } from "./GalleryCard";
+import { formatDate } from "./GalleryCard";
+import { tiltFor } from "@/lib/tilt";
 import { spring } from "@/lib/motion";
 
 /** A row of five hearts, filled up to `score`. */

@@ -41,7 +41,7 @@ export function Toaster() {
       {items.map((item) => (
         <div
           key={item.id}
-          className={`${item.leaving ? "animate-pop-out" : "animate-pop"} rounded-full px-4 py-2.5 text-sm font-medium shadow-lift ${
+          className={`${item.leaving ? "animate-pop-out" : "animate-pop"} rounded-md px-4 py-2.5 text-sm font-medium shadow-lift ${
             item.kind === "error"
               ? "bg-ink text-red-200"
               : "bg-ink text-paper"

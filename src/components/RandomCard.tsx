@@ -7,7 +7,7 @@ import { CATEGORY_META, type PromptCategory } from "@/lib/games/random/prompts";
 import { Badge } from "./ui";
 import { Countdown } from "./Countdown";
 import { BlurImage } from "./motion/BlurImage";
-import { tiltFor } from "./GalleryCard";
+import { tiltFor } from "@/lib/tilt";
 import { spring } from "@/lib/motion";
 
 function emojiFor(category: string): string {

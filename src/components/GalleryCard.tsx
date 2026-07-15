@@ -5,18 +5,13 @@ import { motion } from "motion/react";
 import type { ChallengeDTO } from "@/lib/types";
 import { BlurImage } from "@/components/motion/BlurImage";
 import { spring } from "@/lib/motion";
+import { tiltFor } from "@/lib/tilt";
 
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   });
-}
-
-/** Small, stable, per-card tilt so the grid reads like a scrapbook, not a table. */
-const TILTS = [-1.6, 1.4, -0.8, 1.9, -1.2, 0.9];
-export function tiltFor(index: number): number {
-  return TILTS[index % TILTS.length];
 }
 
 /** One memory in the gallery grid. */

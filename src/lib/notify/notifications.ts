@@ -92,6 +92,61 @@ export async function notifyDeadlineSoon(roomId: string, prompt: string): Promis
   });
 }
 
+// ── The radio ────────────────────────────────────────────────
+
+/** Notify the partner that a dedication (song + note) is waiting for them. */
+export async function notifyDedicationSent(
+  roomId: string,
+  fromParticipantId: string,
+  fromName: string,
+  trackTitle: string
+): Promise<void> {
+  await dispatch({
+    type: "dedication_received",
+    roomId,
+    exceptParticipantId: fromParticipantId,
+    title: "A song, for you 💌",
+    body: `${fromName} dedicated "${trackTitle}" to you.`,
+    url: "/music",
+  });
+}
+
+/** Notify the partner that something just went on air — come listen together. */
+export async function notifyNowPlaying(
+  roomId: string,
+  fromParticipantId: string,
+  fromName: string,
+  trackTitle: string
+): Promise<void> {
+  await dispatch({
+    type: "now_playing",
+    roomId,
+    exceptParticipantId: fromParticipantId,
+    title: "On air 📻",
+    body: `${fromName} put on "${trackTitle}" — tune in.`,
+    url: "/music",
+  });
+}
+
+// ── Photobooth ───────────────────────────────────────────────
+
+/** Notify the partner that a booth is open and waiting for them. */
+export async function notifyBoothStarted(
+  roomId: string,
+  fromParticipantId: string,
+  fromName: string,
+  boothId: string
+): Promise<void> {
+  await dispatch({
+    type: "booth_started",
+    roomId,
+    exceptParticipantId: fromParticipantId,
+    title: "Photobooth time 📸",
+    body: `${fromName} is in the booth waiting for you.`,
+    url: `/booth/${boothId}`,
+  });
+}
+
 // ── Game 3 · Know Me ─────────────────────────────────────────
 
 /** Notify the partner that a Know Me round is waiting for their answers. */

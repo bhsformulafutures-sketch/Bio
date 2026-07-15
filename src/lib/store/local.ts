@@ -18,6 +18,7 @@ import type {
   NewRandom,
   NewRandomSubmission,
   NewTrack,
+  PlayerStateRecord,
   NewWhereAmIGuess,
   NewWhereAmIRound,
   ParticipantRecord,
@@ -50,10 +51,11 @@ interface Db {
   // ── Game 3 · Know Me ───────────────────────────────────────
   knowmeRounds: KnowMeRoundRecord[];
   knowmeAnswers: KnowMeAnswerRecord[];
-  // ── Photobooth & record player ─────────────────────────────
+  // ── Photobooth & radio ─────────────────────────────────────
   booths: BoothRecord[];
   boothFrames: BoothFrameRecord[];
   tracks: TrackRecord[];
+  playerStates: PlayerStateRecord[];
 }
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -76,10 +78,11 @@ const EMPTY_DB: Db = {
   // ── Game 3 · Know Me ───────────────────────────────────────
   knowmeRounds: [],
   knowmeAnswers: [],
-  // ── Photobooth & record player ─────────────────────────────
+  // ── Photobooth & radio ─────────────────────────────────────
   booths: [],
   boothFrames: [],
   tracks: [],
+  playerStates: [],
 };
 
 /**
@@ -287,6 +290,12 @@ export class LocalStore implements Store {
       db.knowmeAnswers = db.knowmeAnswers.filter(
         (a) => !removedKnowMe.includes(a.roundId)
       );
+      // ── Photobooth & radio ─────────────────────────────────
+      const removedBooths = db.booths.filter((b) => b.roomId === roomId).map((b) => b.id);
+      db.booths = db.booths.filter((b) => b.roomId !== roomId);
+      db.boothFrames = db.boothFrames.filter((f) => !removedBooths.includes(f.boothId));
+      db.tracks = db.tracks.filter((t) => t.roomId !== roomId);
+      db.playerStates = db.playerStates.filter((p) => p.roomId !== roomId);
       await this.writeDb(db);
       await fs.rm(path.join(FILES_DIR, "rooms", roomId), {
         recursive: true,
@@ -732,10 +741,46 @@ export class LocalStore implements Store {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  async getTrack(id: string): Promise<TrackRecord | null> {
+    const db = await this.readDb();
+    return db.tracks.find((t) => t.id === id) ?? null;
+  }
+
   deleteTrack(id: string) {
     return this.locked(async () => {
       const db = await this.readDb();
       db.tracks = db.tracks.filter((t) => t.id !== id);
+      // A deleted track can't stay on air.
+      db.playerStates = db.playerStates.filter((p) => p.trackId !== id);
+      await this.writeDb(db);
+    });
+  }
+
+  async getPlayerState(roomId: string): Promise<PlayerStateRecord | null> {
+    const db = await this.readDb();
+    return db.playerStates.find((p) => p.roomId === roomId) ?? null;
+  }
+
+  setPlayerState(roomId: string, trackId: string, participantId: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      const state: PlayerStateRecord = {
+        roomId,
+        trackId,
+        startedById: participantId,
+        startedAt: new Date().toISOString(),
+      };
+      db.playerStates = db.playerStates.filter((p) => p.roomId !== roomId);
+      db.playerStates.push(state);
+      await this.writeDb(db);
+      return state;
+    });
+  }
+
+  clearPlayerState(roomId: string) {
+    return this.locked(async () => {
+      const db = await this.readDb();
+      db.playerStates = db.playerStates.filter((p) => p.roomId !== roomId);
       await this.writeDb(db);
     });
   }
@@ -747,6 +792,12 @@ export class LocalStore implements Store {
     if (!full.startsWith(FILES_DIR)) throw new Error("Invalid path");
     await fs.mkdir(path.dirname(full), { recursive: true });
     await fs.writeFile(full, data);
+  }
+
+  async deleteFile(filePath: string): Promise<void> {
+    const full = path.join(FILES_DIR, filePath);
+    if (!full.startsWith(FILES_DIR)) throw new Error("Invalid path");
+    await fs.rm(full, { force: true });
   }
 
   fileUrl(filePath: string): string {

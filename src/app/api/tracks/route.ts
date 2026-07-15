@@ -3,7 +3,8 @@ import { randomUUID } from "crypto";
 import { getSession } from "@/lib/session";
 import { getStore } from "@/lib/store";
 import { trackToDTO } from "@/lib/serialize";
-import { parseTrackUrl } from "@/lib/music";
+import { fetchTrackMeta, parseTrackUrl } from "@/lib/music";
+import { notifyDedicationSent } from "@/lib/notify/notifications";
 import type { NewTrack, TrackKind } from "@/lib/store/types";
 
 export const dynamic = "force-dynamic";
@@ -38,19 +39,32 @@ export async function POST(req: NextRequest) {
   }
 
   const kind: TrackKind = form.get("kind") === "dedication" ? "dedication" : "queue";
-  const title = String(form.get("title") ?? "").trim().slice(0, 140);
+  let title = String(form.get("title") ?? "").trim().slice(0, 140);
   const url = String(form.get("url") ?? "").trim().slice(0, 2000);
-  const artist = String(form.get("artist") ?? "").trim().slice(0, 140) || null;
+  let artist = String(form.get("artist") ?? "").trim().slice(0, 140) || null;
   const lyric = String(form.get("lyric") ?? "").trim().slice(0, 500) || null;
 
-  if (!title) {
-    return NextResponse.json({ error: "Give it a title." }, { status: 400 });
-  }
   if (!url) {
     return NextResponse.json({ error: "Paste a song link." }, { status: 400 });
   }
 
   const { provider, embedUrl } = parseTrackUrl(url);
+
+  // Fill title/artist from the provider's oEmbed endpoint when the client
+  // didn't supply them. A typed title always wins over the fetched one.
+  if (!title || !artist) {
+    const meta = await fetchTrackMeta(url, provider);
+    if (meta) {
+      if (!title) title = meta.title;
+      if (!artist) artist = meta.artist;
+    }
+  }
+  if (!title) {
+    return NextResponse.json(
+      { error: "Couldn't read that link — give the song a title." },
+      { status: 400 }
+    );
+  }
   const store = getStore();
   const trackId = randomUUID();
 
@@ -80,5 +94,13 @@ export async function POST(req: NextRequest) {
   };
   const track = await store.createTrack(data);
   await store.touch(session.participant.id);
+  if (kind === "dedication") {
+    await notifyDedicationSent(
+      session.room.id,
+      session.participant.id,
+      session.participant.name,
+      track.title
+    );
+  }
   return NextResponse.json({ track: trackToDTO(track, session) });
 }

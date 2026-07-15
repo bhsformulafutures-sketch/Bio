@@ -12,7 +12,10 @@ export type NotificationType =
   | "challenge_received" // partner sent you a new Other Half / started a Random
   | "challenge_completed" // partner finished your challenge — reveal ready
   | "daily_available" // today's Random Challenge is live
-  | "deadline_reminder"; // a live challenge's clock is running low
+  | "deadline_reminder" // a live challenge's clock is running low
+  | "dedication_received" // partner sent a song dedication on the radio
+  | "now_playing" // partner just went on air — come listen together
+  | "booth_started"; // partner opened the photobooth and is waiting
 
 export interface NotificationEvent {
   type: NotificationType;

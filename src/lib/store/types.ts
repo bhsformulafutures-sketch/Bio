@@ -93,6 +93,18 @@ export interface NewTrack {
   notePath: string | null;
 }
 
+/**
+ * The room's shared "on air" state — at most one per room. Set when someone
+ * presses play, cleared on stop. The partner's client polls it and offers to
+ * tune in; there is no forced remote playback (autoplay policies anyway).
+ */
+export interface PlayerStateRecord {
+  roomId: string;
+  trackId: string;
+  startedById: string;
+  startedAt: string;
+}
+
 export interface ChallengeRecord {
   id: string;
   roomId: string;
@@ -334,10 +346,19 @@ export interface Store {
   setBoothStrip(boothId: string, stripPath: string): Promise<void>;
   cancelBooth(boothId: string): Promise<void>;
 
-  // ── Record player ──────────────────────────────────────────
+  // ── Radio (tracks + shared player) ─────────────────────────
   createTrack(data: NewTrack): Promise<TrackRecord>;
   listTracks(roomId: string): Promise<TrackRecord[]>;
+  getTrack(id: string): Promise<TrackRecord | null>;
   deleteTrack(id: string): Promise<void>;
+  /** The room's current "on air" state, if anything is playing. */
+  getPlayerState(roomId: string): Promise<PlayerStateRecord | null>;
+  setPlayerState(
+    roomId: string,
+    trackId: string,
+    participantId: string
+  ): Promise<PlayerStateRecord>;
+  clearPlayerState(roomId: string): Promise<void>;
 
   // ── Game 1 · Other Half ────────────────────────────────────
   createChallenge(data: NewChallenge): Promise<ChallengeRecord>;
@@ -382,6 +403,8 @@ export interface Store {
 
   // ── Files ──────────────────────────────────────────────────
   saveFile(path: string, data: Uint8Array, contentType: string): Promise<void>;
+  /** Best-effort removal of one stored file (cleanup, not correctness). */
+  deleteFile(path: string): Promise<void>;
   fileUrl(path: string): string;
 
   // ── Game 4 · Where Am I ────────────────────────────────────

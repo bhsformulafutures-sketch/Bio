@@ -299,3 +299,17 @@ alter table tracks enable row level security;
 
 drop policy if exists "service_access_tracks" on tracks;
 create policy "service_access_tracks" on tracks for all to service_role using (true) with check (true);
+
+-- ── Radio: shared "on air" player state (at most one per room) ──
+
+create table if not exists player_states (
+  room_id        uuid primary key references rooms(id) on delete cascade,
+  track_id       uuid not null references tracks(id) on delete cascade,
+  started_by_id  uuid not null references participants(id) on delete cascade,
+  started_at     timestamptz not null default now()
+);
+
+alter table player_states enable row level security;
+
+drop policy if exists "service_access_player_states" on player_states;
+create policy "service_access_player_states" on player_states for all to service_role using (true) with check (true);

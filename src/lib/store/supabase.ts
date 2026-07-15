@@ -17,6 +17,7 @@ import type {
   NewRandom,
   NewRandomSubmission,
   NewTrack,
+  PlayerStateRecord,
   NewWhereAmIGuess,
   NewWhereAmIRound,
   ParticipantRecord,
@@ -92,6 +93,12 @@ interface TrackRow {
   lyric: string | null;
   note_path: string | null;
   created_at: string;
+}
+interface PlayerStateRow {
+  room_id: string;
+  track_id: string;
+  started_by_id: string;
+  started_at: string;
 }
 interface ChallengeRow {
   id: string;
@@ -225,6 +232,13 @@ const mapBoothFrame = (f: BoothFrameRow): BoothFrameRecord => ({
   idx: f.idx,
   path: f.path,
   createdAt: f.created_at,
+});
+
+const mapPlayerState = (p: PlayerStateRow): PlayerStateRecord => ({
+  roomId: p.room_id,
+  trackId: p.track_id,
+  startedById: p.started_by_id,
+  startedAt: p.started_at,
 });
 
 const mapTrack = (t: TrackRow): TrackRecord => ({
@@ -1221,8 +1235,65 @@ export class SupabaseStore implements Store {
     return (data as TrackRow[]).map(mapTrack);
   }
 
+  async getTrack(id: string): Promise<TrackRecord | null> {
+    const { data, error } = await this.client
+      .from("tracks")
+      .select()
+      .eq("id", id)
+      .maybeSingle<TrackRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapTrack(data) : null;
+  }
+
   async deleteTrack(id: string): Promise<void> {
+    // A deleted track can't stay on air (FK is on delete cascade anyway).
+    await this.client.from("player_states").delete().eq("track_id", id);
     const { error } = await this.client.from("tracks").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async getPlayerState(roomId: string): Promise<PlayerStateRecord | null> {
+    const { data, error } = await this.client
+      .from("player_states")
+      .select()
+      .eq("room_id", roomId)
+      .maybeSingle<PlayerStateRow>();
+    if (error) throw new Error(error.message);
+    return data ? mapPlayerState(data) : null;
+  }
+
+  async setPlayerState(
+    roomId: string,
+    trackId: string,
+    participantId: string
+  ): Promise<PlayerStateRecord> {
+    const { data, error } = await this.client
+      .from("player_states")
+      .upsert(
+        {
+          room_id: roomId,
+          track_id: trackId,
+          started_by_id: participantId,
+          started_at: new Date().toISOString(),
+        },
+        { onConflict: "room_id" }
+      )
+      .select()
+      .single<PlayerStateRow>();
+    if (error) throw new Error(error.message);
+    return mapPlayerState(data);
+  }
+
+  async clearPlayerState(roomId: string): Promise<void> {
+    const { error } = await this.client
+      .from("player_states")
+      .delete()
+      .eq("room_id", roomId);
+    if (error) throw new Error(error.message);
+  }
+
+  async deleteFile(path: string): Promise<void> {
+    const { error } = await this.client.storage.from(BUCKET).remove([path]);
     if (error) throw new Error(error.message);
   }
 }

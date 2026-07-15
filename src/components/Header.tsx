@@ -30,6 +30,17 @@ export function Header({ session }: { session: SessionDTO | null }) {
           <Logo />
         </Link>
         <div className="flex items-center gap-2">
+          {session?.partnerOnAir && (
+            <Link
+              href="/music"
+              className="flex items-center gap-1.5 rounded-md border border-accent/30 bg-accent-soft
+                px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-accent-deep"
+              title={`${session.partner?.name ?? "Your partner"} is playing music`}
+            >
+              <span className="size-1.5 animate-glow rounded-full bg-accent" />
+              on air
+            </Link>
+          )}
           <WallpaperPicker />
           {session && <RoomSwitcher session={session} />}
         </div>

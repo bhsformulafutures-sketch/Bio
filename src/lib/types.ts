@@ -19,6 +19,8 @@ export interface SessionDTO {
   partner: { id: string; name: string; avatar: string | null } | null;
   /** True when the partner has been active within the presence window. */
   partnerOnline: boolean;
+  /** True when the partner is online and has a track on air right now. */
+  partnerOnAir: boolean;
 }
 
 export type BoothStatus = "pending" | "live" | "completed" | "cancelled";
@@ -46,6 +48,14 @@ export interface BoothDTO {
 }
 
 export type TrackKind = "queue" | "dedication";
+
+/** The room's shared "on air" state — what's playing and who started it. */
+export interface PlayerDTO {
+  track: TrackDTO;
+  startedAt: string;
+  startedByName: string;
+  fromMe: boolean;
+}
 
 /** A song on the room record player, or a dedication with lyric + note. */
 export interface TrackDTO {

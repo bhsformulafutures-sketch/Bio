@@ -5,6 +5,7 @@ import type {
   BoothDTO,
   ChallengeDTO,
   KnowMeRoundDTO,
+  PlayerDTO,
   RandomDTO,
   RandomSubmissionDTO,
   SessionDTO,
@@ -22,6 +23,7 @@ import type {
   ChallengeRecord,
   KnowMeAnswerRecord,
   KnowMeRoundRecord,
+  PlayerStateRecord,
   RandomRecord,
   RandomSubmissionRecord,
   SessionRecord,
@@ -51,10 +53,19 @@ export function userToDTO(user: UserRecord): UserDTO {
  * avatar (which lives on their user account, not their room membership).
  */
 export async function sessionToDTO(session: SessionRecord): Promise<SessionDTO> {
+  const store = getStore();
   let partnerAvatar: string | null = null;
   if (session.partner?.userId) {
-    const partnerUser = await getStore().getUserById(session.partner.userId);
+    const partnerUser = await store.getUserById(session.partner.userId);
     partnerAvatar = partnerUser?.avatar ?? null;
+  }
+  const partnerOnline = isOnline(session.partner?.lastSeenAt);
+  // "On air" is presence-scoped: a stale player row from yesterday shouldn't
+  // light the chip — the partner must be online right now.
+  let partnerOnAir = false;
+  if (session.partner && partnerOnline) {
+    const player = await store.getPlayerState(session.room.id);
+    partnerOnAir = player?.startedById === session.partner.id;
   }
   return {
     user: userToDTO(session.user),
@@ -67,7 +78,25 @@ export async function sessionToDTO(session: SessionRecord): Promise<SessionDTO> 
     partner: session.partner
       ? { id: session.partner.id, name: session.partner.name, avatar: partnerAvatar }
       : null,
-    partnerOnline: isOnline(session.partner?.lastSeenAt),
+    partnerOnline,
+    partnerOnAir,
+  };
+}
+
+/** Shape the room's "on air" state for one viewer. */
+export function playerToDTO(
+  state: PlayerStateRecord,
+  track: TrackRecord,
+  session: SessionRecord
+): PlayerDTO {
+  const fromMe = state.startedById === session.participant.id;
+  return {
+    track: trackToDTO(track, session),
+    startedAt: state.startedAt,
+    startedByName: fromMe
+      ? session.participant.name
+      : session.partner?.name ?? "Partner",
+    fromMe,
   };
 }
 

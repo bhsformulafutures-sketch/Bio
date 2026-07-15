@@ -64,6 +64,34 @@ export function parseTrackUrl(raw: string): ParsedTrack {
   return { provider: "other", embedUrl: null };
 }
 
+/**
+ * Fetch title/artist for a pasted link from the provider's keyless oEmbed
+ * endpoint (server-side only). Best-effort: a slow or missing provider must
+ * never block adding a track, so failures resolve to null.
+ */
+export async function fetchTrackMeta(
+  url: string,
+  provider: string
+): Promise<{ title: string; artist: string | null } | null> {
+  const endpoints: Record<string, string> = {
+    youtube: `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`,
+    spotify: `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`,
+    soundcloud: `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(url)}`,
+  };
+  const endpoint = endpoints[provider];
+  if (!endpoint) return null;
+  try {
+    const res = await fetch(endpoint, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { title?: string; author_name?: string };
+    const title = data.title?.trim();
+    if (!title) return null;
+    return { title: title.slice(0, 140), artist: data.author_name?.trim().slice(0, 140) || null };
+  } catch {
+    return null;
+  }
+}
+
 /** Friendly label for a provider id. */
 export function providerLabel(provider: string): string {
   switch (provider) {

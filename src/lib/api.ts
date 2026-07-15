@@ -10,6 +10,7 @@ import type {
   RandomDTO,
   RoomSummaryDTO,
   SessionDTO,
+  PlayerDTO,
   TrackDTO,
   WhereAmIRoundDTO,
 } from "./types";
@@ -236,7 +237,7 @@ export const api = {
 
   listBooths: () => request<{ booths: BoothDTO[] }>("/api/booths"),
 
-  // ── Record player ──────────────────────────────────────────
+  // ── The radio ──────────────────────────────────────────────
   listTracks: () => request<{ tracks: TrackDTO[] }>("/api/tracks"),
 
   addTrack: (form: FormData) =>
@@ -244,4 +245,16 @@ export const api = {
 
   deleteTrack: (id: string) =>
     request<{ ok: true }>(`/api/tracks/${id}`, { method: "DELETE" }),
+
+  getPlayer: () => request<PlayerResponse>("/api/player"),
+
+  setPlayer: (trackId: string) =>
+    request<PlayerResponse>("/api/player", { ...json({ trackId }), method: "PUT" }),
+
+  stopPlayer: () => request<{ ok: true }>("/api/player", { method: "DELETE" }),
 };
+
+interface PlayerResponse {
+  player: PlayerDTO | null;
+  serverNow: string;
+}

@@ -111,9 +111,9 @@ function AlbumTile({ album, index }: { album: AlbumSummaryDTO; index: number }) 
     >
       <Link
         href={`/album/${album.id}`}
-        className="group block w-36 overflow-hidden rounded-2xl bg-surface p-1.5 shadow-card transition-shadow hover:shadow-lift"
+        className="group block w-36 overflow-hidden border border-line/70 bg-[#fffef9] p-1.5 shadow-card transition-shadow hover:shadow-lift"
       >
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-accent-soft to-dusk-soft">
+        <div className="relative aspect-square w-full overflow-hidden bg-kraft/70">
           {album.coverUrl ? (
             <BlurImage
               src={album.coverUrl}
@@ -128,11 +128,11 @@ function AlbumTile({ album, index }: { album: AlbumSummaryDTO; index: number }) 
             </span>
           )}
           {/* Stacked-paper hint behind the cover for depth. */}
-          <span className="pointer-events-none absolute -right-1 top-2 h-full w-full rounded-xl border border-line/60 bg-surface/40 -z-10" />
+          <span className="pointer-events-none absolute -right-1 top-2 h-full w-full border border-line/60 bg-surface/40 -z-10" />
         </div>
-        <div className="px-1.5 py-2">
-          <p className="truncate text-[13px] font-semibold text-ink">{album.name}</p>
-          <p className="text-xs text-soft">
+        <div className="px-1.5 pb-0.5 pt-1.5">
+          <p className="truncate font-hand text-base leading-tight text-ink">{album.name}</p>
+          <p className="font-hand text-[13px] text-soft">
             {album.count} {album.count === 1 ? "memory" : "memories"}
           </p>
         </div>

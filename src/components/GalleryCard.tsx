@@ -36,23 +36,23 @@ export function GalleryCard({
     >
       <Link
         href={`/challenge/${challenge.id}`}
-        className="group block overflow-hidden rounded-2xl bg-surface p-1.5 shadow-card
+        className="group block overflow-hidden border border-line/70 bg-[#fffef9] p-1.5 shadow-card
           transition-shadow duration-200 hover:shadow-lift"
       >
         <BlurImage
           src={preview}
           alt="Completed challenge"
           loading="lazy"
-          wrapperClassName="w-full rounded-xl"
+          wrapperClassName="w-full"
           className="block w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           style={{ aspectRatio: `${challenge.width} / ${challenge.height}` }}
         />
-        <div className="flex items-center justify-between gap-2 px-1.5 py-2">
-          <p className="truncate text-[13px] text-soft">
+        <div className="flex items-center justify-between gap-2 px-1.5 pb-0.5 pt-1.5">
+          <p className="truncate font-hand text-[15px] leading-tight text-soft">
             📸 {challenge.creator.name}
             {challenge.solver && <> · ✏️ {challenge.solver.name}</>}
           </p>
-          <span className="shrink-0 text-xs text-faint">
+          <span className="shrink-0 font-hand text-[13px] text-faint">
             {formatDate(challenge.completedAt ?? challenge.createdAt)}
           </span>
         </div>

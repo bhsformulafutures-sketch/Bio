@@ -55,10 +55,10 @@ export function KnowMeCard({
     >
       <Link
         href={`/knowme/${round.id}`}
-        className="group block overflow-hidden rounded-2xl bg-surface p-1.5 shadow-card
+        className="group block overflow-hidden border border-line/70 bg-[#fffef9] p-1.5 shadow-card
           transition-shadow duration-200 hover:shadow-lift"
       >
-        <div className="flex flex-col gap-2 rounded-xl bg-gradient-to-br from-accent-soft to-dusk-soft p-4">
+        <div className="flex flex-col gap-2 bg-dusk-soft/60 p-4">
           <div className="flex items-center justify-between">
             {done ? (
               <Badge tone="soft">💞 Rated</Badge>
@@ -90,8 +90,8 @@ export function KnowMeCard({
             </p>
           )}
         </div>
-        <div className="px-1.5 py-2">
-          <p className="line-clamp-1 text-[13px] font-medium text-ink">
+        <div className="px-1.5 pb-0.5 pt-1.5">
+          <p className="line-clamp-1 font-hand text-[15px] leading-tight text-ink">
             {done
               ? knowMeVerdict(Math.max(myScore, partnerScore))
               : `${round.questions.length} questions · started by ${round.starter.name}`}

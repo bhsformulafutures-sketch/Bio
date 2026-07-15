@@ -65,7 +65,7 @@ function Hero() {
     <div className="text-center">
       <Logo className="text-4xl" />
       <p className="mt-4 text-balance text-[15px] leading-relaxed text-soft">
-        A tiny, private world for two — little photo games, shared moments,
+        A tiny, private world for two — little photo games, a shared radio,
         <span className="font-semibold text-ink"> just the two of you.</span>
       </p>
       {/* two hearts drifting toward each other */}
@@ -142,7 +142,7 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
             <button
               key={a}
               onClick={() => setAvatar(a)}
-              className={`flex aspect-square items-center justify-center rounded-xl text-xl transition-all active:scale-90 ${
+              className={`flex aspect-square items-center justify-center rounded-md text-xl transition-all active:scale-90 ${
                 avatar === a
                   ? "bg-accent-soft ring-2 ring-accent"
                   : "bg-paper hover:bg-line"
@@ -222,7 +222,7 @@ function RoomStep({ onHome }: { onHome: () => void }) {
             <button
               key={s}
               onClick={() => setCode(s)}
-              className="rounded-full bg-paper px-3 py-1 text-xs font-medium text-soft transition-colors hover:bg-accent-soft hover:text-accent-deep"
+              className="rounded-md border border-line bg-paper px-3 py-1 font-hand text-sm text-soft transition-colors hover:bg-accent-soft hover:text-accent-deep"
             >
               {s}
             </button>

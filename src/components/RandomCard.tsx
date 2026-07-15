@@ -37,10 +37,10 @@ export function RandomCard({
     >
       <Link
         href={`/random/${random.id}`}
-        className="group block overflow-hidden rounded-2xl bg-surface p-1.5 shadow-card
+        className="group block overflow-hidden border border-line/70 bg-[#fffef9] p-1.5 shadow-card
           transition-shadow duration-200 hover:shadow-lift"
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-accent-soft to-dusk-soft">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-accent-soft/60">
           {cover ? (
             <BlurImage
               src={cover}
@@ -66,8 +66,10 @@ export function RandomCard({
             )}
           </div>
         </div>
-        <div className="px-1.5 py-2">
-          <p className="line-clamp-2 text-[13px] font-medium text-ink">{random.prompt}</p>
+        <div className="px-1.5 pb-0.5 pt-1.5">
+          <p className="line-clamp-2 font-hand text-[15px] leading-tight text-ink">
+            {random.prompt}
+          </p>
         </div>
       </Link>
     </motion.div>

@@ -339,7 +339,7 @@ export function PhotoAligner({ challenge, rect, onDone, onClose }: PhotoAlignerP
       <div className="flex flex-1 items-center justify-center overflow-hidden px-4">
         <div
           ref={frameRef}
-          className="relative w-full max-w-2xl touch-none select-none overflow-hidden rounded-2xl bg-black shadow-lift"
+          className="relative w-full max-w-2xl touch-none select-none overflow-hidden rounded-lg bg-black shadow-lift"
           style={{ aspectRatio: `${W} / ${H}`, maxHeight: "62dvh" }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}

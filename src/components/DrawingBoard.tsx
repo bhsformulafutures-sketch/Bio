@@ -213,7 +213,7 @@ export function DrawingBoard({ challenge, submitting, onFinish }: DrawingBoardPr
     <div className="flex flex-col gap-3">
       {/* canvas over the visible half */}
       <div
-        className="relative w-full overflow-hidden rounded-2xl bg-line shadow-card"
+        className="relative w-full overflow-hidden rounded-lg bg-line shadow-card"
         style={{ aspectRatio: `${width} / ${height}` }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

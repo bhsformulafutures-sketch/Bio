@@ -82,7 +82,7 @@ export function ResultView({
         />
       ) : (
         <div
-          className="relative w-full overflow-hidden rounded-2xl bg-line"
+          className="relative w-full overflow-hidden rounded-lg bg-line"
           style={{ aspectRatio: `${aspectRatio}` }}
         >
           {view === "original" && original}

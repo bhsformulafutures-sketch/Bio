@@ -206,7 +206,7 @@ export default function WhereAmIRoundPage({
         <Header session={session} />
         <main className="mx-auto flex max-w-lg flex-col gap-5 px-4 pt-5">
           <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-72 w-full rounded-3xl" />
+          <Skeleton className="h-72 w-full rounded-lg" />
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-24 w-full" />
         </main>
@@ -254,7 +254,7 @@ export default function WhereAmIRoundPage({
         </div>
 
         {/* The photo — the whole case file. */}
-        <div className="animate-fade-up overflow-hidden rounded-3xl shadow-card">
+        <div className="animate-fade-up overflow-hidden rounded-lg shadow-card">
           <BlurImage
             src={round.photoUrl}
             alt={round.mine ? "Your photo" : `${round.creator.name}'s mystery place`}
@@ -288,7 +288,7 @@ export default function WhereAmIRoundPage({
                     {round.mine ? `${partnerName} found you` : "You found them"}
                   </p>
                   <p className="text-sm text-soft">The place was</p>
-                  <p className="rounded-2xl bg-accent-soft px-5 py-2.5 font-display text-lg font-bold text-accent-deep">
+                  <p className="rounded-lg bg-accent-soft px-5 py-2.5 font-display text-lg font-bold text-accent-deep">
                     {round.answer}
                   </p>
                   <div className="mt-1 flex flex-col items-center gap-1">
@@ -313,7 +313,7 @@ export default function WhereAmIRoundPage({
                       ? `Four tries and ${partnerName} never quite landed on it.`
                       : "Four tries, so many almosts. It was"}
                   </p>
-                  <p className="rounded-2xl bg-dusk-soft px-5 py-2.5 font-display text-lg font-bold text-dusk">
+                  <p className="rounded-lg bg-dusk-soft px-5 py-2.5 font-display text-lg font-bold text-dusk">
                     {round.answer}
                   </p>
                   <p className="text-xs text-faint">
@@ -420,7 +420,7 @@ export default function WhereAmIRoundPage({
                 <p className="text-sm font-semibold text-soft">Your secret</p>
                 <Hearts lit={round.guessesLeft} dimmed={MAX_GUESSES - round.guessesLeft} />
               </div>
-              <p className="rounded-2xl bg-paper px-4 py-2.5 font-display text-lg font-bold text-ink">
+              <p className="rounded-lg bg-paper px-4 py-2.5 font-display text-lg font-bold text-ink">
                 {round.answer}
               </p>
               <ul className="flex flex-col gap-3">

@@ -16,7 +16,14 @@ const SHOT_WINDOW_MS = 3600; // per shot: 3s countdown + ~0.6s flash/review
 const CAPTURE_AT_MS = 3000; // capture at this offset within each window
 const POLL_MS = 1500;
 
-type Phase = "camera" | "waiting" | "countdown" | "processing" | "done" | "error";
+type Phase =
+  | "loading"
+  | "camera"
+  | "waiting"
+  | "countdown"
+  | "processing"
+  | "done"
+  | "error";
 
 export default function BoothPage({
   params,
@@ -30,7 +37,10 @@ export default function BoothPage({
 
   const [session, setSession] = useState<SessionDTO | null>(null);
   const [booth, setBooth] = useState<BoothDTO | null>(null);
-  const [phase, setPhase] = useState<Phase>("camera");
+  // Start without the camera: a completed booth is view-only and must not
+  // trigger a permission prompt. The first poll decides.
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [cameraOn, setCameraOn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   // Live countdown display.
@@ -45,8 +55,9 @@ export default function BoothPage({
   const readySentRef = useRef(false);
   const stripSentRef = useRef(false);
 
-  /* ---- camera ---- */
+  /* ---- camera (only once we know the booth is actually live/pending) ---- */
   useEffect(() => {
+    if (!cameraOn) return;
     let cancelled = false;
     (async () => {
       try {
@@ -75,7 +86,7 @@ export default function BoothPage({
       cancelled = true;
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
-  }, []);
+  }, [cameraOn]);
 
   /* Tell the server my camera is ready (once). */
   useEffect(() => {
@@ -125,6 +136,10 @@ export default function BoothPage({
       }
     } else if (booth.status === "completed") {
       setPhase("done");
+    } else if (phase === "loading") {
+      // Live/pending booth — now the camera is actually needed.
+      setCameraOn(true);
+      setPhase("camera");
     } else if (
       booth.status === "live" &&
       booth.startAt !== null &&
@@ -187,14 +202,19 @@ export default function BoothPage({
     return () => clearInterval(interval);
   }, [phase, booth, captureShot]);
 
-  /* ---- initiator composites the strip once frames land ---- */
+  /* ---- composite the strip once frames land ----
+     Either device may finish it (the server keeps the first strip), so a
+     booth is never orphaned when the initiator closes their tab. The
+     initiator still leads: the partner waits a couple of extra seconds
+     before stepping in, so both rarely upload. */
   useEffect(() => {
-    if (phase !== "processing" || !booth || !booth.mine || stripSentRef.current) {
+    if (phase !== "processing" || !booth || !session || stripSentRef.current) {
       return;
     }
     const partnerId = booth.frames
       .map((f) => f.participantId)
       .find((pid) => pid !== booth.initiatorId);
+    const myColumnIsLeft = booth.initiatorId === session.participant.id;
 
     const tryBuild = async () => {
       if (stripSentRef.current) return;
@@ -208,14 +228,18 @@ export default function BoothPage({
           ? booth.frames.find((f) => f.participantId === partnerId && f.idx === i)?.url
           : undefined;
       }
-      const mineComplete = left.every(Boolean);
-      const partnerComplete = right.every(Boolean);
+      const leftComplete = left.every(Boolean);
+      const rightComplete = right.every(Boolean);
+      const myColumnComplete = myColumnIsLeft ? leftComplete : rightComplete;
 
+      const graceMs = booth.mine ? 9000 : 13000;
       const deadlinePassed =
         booth.startAt !== null &&
-        Date.now() + offsetRef.current > booth.startAt + booth.shots * SHOT_WINDOW_MS + 9000;
+        Date.now() + offsetRef.current >
+          booth.startAt + booth.shots * SHOT_WINDOW_MS + graceMs;
 
-      if ((mineComplete && partnerComplete) || (mineComplete && deadlinePassed)) {
+      if ((leftComplete && rightComplete && (booth.mine || deadlinePassed)) ||
+          (myColumnComplete && deadlinePassed)) {
         stripSentRef.current = true;
         try {
           const caption = new Date().toLocaleDateString(undefined, {
@@ -236,7 +260,7 @@ export default function BoothPage({
     tryBuild();
     const interval = setInterval(tryBuild, 1200);
     return () => clearInterval(interval);
-  }, [phase, booth, id]);
+  }, [phase, booth, session, id]);
 
   const leave = async () => {
     try {
@@ -265,23 +289,37 @@ export default function BoothPage({
           </button>
         </div>
 
-        {phase === "error" ? (
-          <div className="flex flex-col items-center gap-4 rounded-3xl border border-line bg-surface p-8 text-center">
+        {phase === "loading" ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <Spinner className="size-7 text-accent" />
+          </div>
+        ) : phase === "error" ? (
+          <div className="flex flex-col items-center gap-4 rounded-lg border border-line bg-surface p-8 text-center shadow-card">
             <p className="text-soft">{errorMsg}</p>
             <Link href="/home">
               <Button variant="soft">Back home</Button>
             </Link>
           </div>
         ) : phase === "done" && stripUrl ? (
-          <div className="animate-fade-up flex flex-col items-center gap-4">
-            <p className="text-sm text-soft">Here&apos;s your strip.</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={stripUrl}
-              alt="Your photobooth strip"
-              className="w-full max-w-xs rounded-2xl shadow-lift"
-            />
-            <div className="flex w-full max-w-xs flex-col gap-2">
+          <div className="animate-fade-up flex flex-col items-center gap-4 pt-2">
+            <p className="font-hand text-lg text-soft">Here&apos;s your strip —</p>
+            <div className="relative border border-line/70 bg-[#fffef9] p-1.5 shadow-lift" style={{ rotate: "-1deg" }}>
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -top-2.5 left-1/2 z-10 block h-5 w-14 -translate-x-1/2 rotate-2 opacity-60"
+                style={{
+                  background: "var(--color-tape-gold)",
+                  clipPath: "polygon(0 12%, 4% 0, 100% 4%, 96% 46%, 100% 88%, 3% 100%, 6% 55%)",
+                }}
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={stripUrl}
+                alt="Your photobooth strip"
+                className="w-full max-w-xs"
+              />
+            </div>
+            <div className="flex w-full max-w-xs flex-col gap-2 pt-1">
               <a href={stripUrl} download="otherhalf-booth.jpg">
                 <Button className="w-full">Save the strip</Button>
               </a>
@@ -294,8 +332,8 @@ export default function BoothPage({
           </div>
         ) : (
           <>
-            {/* live camera */}
-            <div className="relative aspect-square w-full overflow-hidden rounded-3xl bg-ink shadow-card">
+            {/* live camera, framed like the booth machine's window */}
+            <div className="relative aspect-square w-full overflow-hidden rounded-lg border-4 border-[#4a3d33] bg-ink shadow-card">
               <video
                 ref={videoRef}
                 playsInline

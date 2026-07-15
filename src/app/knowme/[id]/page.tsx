@@ -74,7 +74,7 @@ function GuessPair({
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <div className="relative flex flex-col gap-1 rounded-2xl bg-dusk-soft/60 p-3">
+      <div className="relative flex flex-col gap-1 rounded-lg bg-dusk-soft/60 p-3">
         <span className="text-[11px] font-bold uppercase tracking-wide text-dusk">
           {guessLabel}
         </span>
@@ -88,7 +88,7 @@ function GuessPair({
           </span>
         )}
       </div>
-      <div className="flex flex-col gap-1 rounded-2xl bg-accent-soft/60 p-3">
+      <div className="flex flex-col gap-1 rounded-lg bg-accent-soft/60 p-3">
         <span className="text-[11px] font-bold uppercase tracking-wide text-accent-deep">
           {truthLabel}
         </span>
@@ -259,7 +259,7 @@ export default function KnowMeRoundPage({
         <Header session={session} />
         <main className="mx-auto flex max-w-lg flex-col gap-5 px-4 pt-5">
           <Skeleton className="h-4 w-16" />
-          <div className="flex flex-col gap-3 rounded-3xl bg-line/40 p-5">
+          <div className="flex flex-col gap-3 rounded-lg bg-line/40 p-5">
             <Skeleton className="h-6 w-28" />
             <Skeleton className="h-7 w-3/4" />
             <Skeleton className="h-4 w-1/2" />

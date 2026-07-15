@@ -120,7 +120,7 @@ export default function RandomChallengePage({
         <Header session={session} />
         <main className="mx-auto flex max-w-lg flex-col gap-5 px-4 pt-5">
           <Skeleton className="h-4 w-16" />
-          <div className="flex flex-col gap-3 rounded-3xl bg-line/40 p-5">
+          <div className="flex flex-col gap-3 rounded-lg bg-line/40 p-5">
             <div className="flex items-center justify-between">
               <Skeleton className="h-6 w-24" />
               <Skeleton className="h-6 w-16" />
@@ -190,7 +190,7 @@ export default function RandomChallengePage({
               {random.submissions.map((s) => (
                 <figure
                   key={s.participant.id}
-                  className="overflow-hidden rounded-2xl bg-surface shadow-card"
+                  className="overflow-hidden rounded-lg bg-surface shadow-card"
                 >
                   <BlurImage
                     src={s.photoUrl}
@@ -257,7 +257,7 @@ export default function RandomChallengePage({
             {!photo ? (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="dotted flex flex-col items-center justify-center gap-3 rounded-3xl
+                className="dotted flex flex-col items-center justify-center gap-3 rounded-lg
                   border-2 border-dashed border-line bg-surface/50 py-16 transition-all
                   hover:border-accent/50 hover:bg-accent-soft/30 active:scale-[0.99]"
               >
@@ -267,7 +267,7 @@ export default function RandomChallengePage({
               </button>
             ) : (
               <>
-                <div className="relative overflow-hidden rounded-2xl shadow-card">
+                <div className="relative overflow-hidden rounded-lg shadow-card">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={photo.url} alt="Your answer" className="w-full" />
                   <button
@@ -301,7 +301,7 @@ export default function RandomChallengePage({
             {random.submissions
               .filter((s) => s.mine)
               .map((s) => (
-                <div key={s.participant.id} className="overflow-hidden rounded-2xl shadow-card">
+                <div key={s.participant.id} className="overflow-hidden rounded-lg shadow-card">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.photoUrl} alt="Your answer" className="w-full" draggable={false} />
                 </div>

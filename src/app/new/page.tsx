@@ -127,7 +127,7 @@ export default function NewChallengePage() {
         {!photo ? (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="dotted animate-fade-up flex flex-col items-center justify-center gap-3 rounded-3xl
+            className="dotted animate-fade-up flex flex-col items-center justify-center gap-3 rounded-lg
               border-2 border-dashed border-line bg-surface/50 py-20 transition-all
               hover:border-accent/50 hover:bg-accent-soft/30 active:scale-[0.99]"
           >
@@ -138,7 +138,7 @@ export default function NewChallengePage() {
         ) : (
           <>
             <div
-              className="animate-pop relative w-full overflow-hidden rounded-2xl shadow-card"
+              className="animate-pop relative w-full overflow-hidden rounded-lg shadow-card"
               style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

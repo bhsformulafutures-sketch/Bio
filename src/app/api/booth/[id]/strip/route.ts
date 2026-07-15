@@ -7,8 +7,9 @@ export const dynamic = "force-dynamic";
 
 const MAX_STRIP_BYTES = 8 * 1024 * 1024;
 
-/** POST /api/booth/[id]/strip — multipart: strip (jpeg). The initiator
- *  composites the finished strip client-side and uploads it here. */
+/** POST /api/booth/[id]/strip — multipart: strip (jpeg). Whichever device
+ *  finishes compositing first uploads here; later uploads are ignored so
+ *  the first strip wins. */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,6 +23,10 @@ export async function POST(
   const booth = await store.getBooth(id);
   if (!booth || booth.roomId !== session.room.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (booth.status === "completed" && booth.stripPath) {
+    const frames = await store.listBoothFrames(booth.id);
+    return NextResponse.json({ booth: boothToDTO(booth, frames, session) });
   }
 
   let strip: Blob | null = null;

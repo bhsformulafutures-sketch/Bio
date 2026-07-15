@@ -81,7 +81,7 @@ export function AlbumStrip({
       {albums.length === 0 && !composing ? (
         <button
           onClick={() => setComposing(true)}
-          className="dotted flex items-center gap-3 rounded-2xl border border-line px-4 py-4 text-left transition-colors hover:border-faint"
+          className="dotted flex items-center gap-3 rounded-lg border border-line px-4 py-4 text-left transition-colors hover:border-faint"
         >
           <span className="text-2xl">🗂️</span>
           <span className="text-sm text-soft">

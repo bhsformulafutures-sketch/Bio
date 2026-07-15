@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getStore } from "@/lib/store";
 import { boothToDTO } from "@/lib/serialize";
+import { notifyBoothStarted } from "@/lib/notify/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,12 @@ export async function POST(req: NextRequest) {
     session.room.id,
     session.participant.id,
     shots
+  );
+  await notifyBoothStarted(
+    session.room.id,
+    session.participant.id,
+    session.participant.name,
+    booth.id
   );
   const frames = await store.listBoothFrames(booth.id);
   return NextResponse.json({

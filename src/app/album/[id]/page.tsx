@@ -167,7 +167,7 @@ export default function AlbumPage() {
             </header>
 
             {album.memories.length === 0 ? (
-              <div className="dotted flex flex-col items-center gap-3 rounded-3xl border border-line py-16 text-center">
+              <div className="dotted flex flex-col items-center gap-3 rounded-lg border border-line py-16 text-center">
                 <span className="animate-float text-4xl">🖼️</span>
                 <p className="max-w-64 text-sm text-soft">
                   This album is empty. Open any memory and tap{" "}

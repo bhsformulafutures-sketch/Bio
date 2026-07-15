@@ -73,7 +73,7 @@ export function NotificationToggle() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={tween.base}
-        className="flex items-center gap-3 rounded-2xl border border-line bg-surface/70 px-4 py-3"
+        className="flex items-center gap-3 rounded-lg border border-line bg-surface/70 px-4 py-3"
       >
         <span className="text-xl" aria-hidden>
           🔔

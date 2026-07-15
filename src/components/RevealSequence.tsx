@@ -110,7 +110,7 @@ export function RevealSequence({ challenge, drawingSrc, onDone }: RevealSequence
         The truth, revealed
       </p>
       <div
-        className="relative mx-auto w-full max-w-lg overflow-hidden rounded-2xl shadow-lift"
+        className="relative mx-auto w-full max-w-lg overflow-hidden rounded-lg shadow-lift"
         style={{ aspectRatio: `${challenge.width} / ${challenge.height}` }}
       >
         {/* the real photo underneath */}

@@ -46,7 +46,7 @@ export function CompareSlider({
   return (
     <div
       ref={containerRef}
-      className="touch-draw relative w-full cursor-ew-resize select-none overflow-hidden rounded-2xl bg-line"
+      className="touch-draw relative w-full cursor-ew-resize select-none overflow-hidden rounded-lg bg-line"
       style={{ aspectRatio: `${aspectRatio}` }}
       onPointerDown={onPointerDown}
       onPointerMove={(e) => dragging && moveTo(e.clientX)}

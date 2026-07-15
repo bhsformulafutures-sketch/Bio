@@ -107,7 +107,7 @@ export function AddToAlbumSheet({
         >
           <div className="absolute inset-0 bg-ink/30 backdrop-blur-sm" onClick={onClose} />
           <motion.div
-            className="relative z-10 flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-surface shadow-lift sm:rounded-3xl"
+            className="relative z-10 flex max-h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-t-lg bg-surface shadow-lift sm:rounded-lg"
             initial={{ y: 40, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 40, opacity: 0, scale: 0.98 }}
@@ -142,7 +142,7 @@ export function AddToAlbumSheet({
                         <button
                           onClick={() => toggle(album)}
                           disabled={busy.has(album.id)}
-                          className={`flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-colors
+                          className={`flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors
                             ${checked ? "border-accent/40 bg-accent-soft/60" : "border-line bg-surface hover:border-faint"}`}
                         >
                           <span

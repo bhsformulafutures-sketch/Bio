@@ -108,7 +108,12 @@ export class LocalStore implements Store {
 
   private async writeDb(db: Db): Promise<void> {
     await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2));
+    // Write to a temp file and rename over the target — fs.rename is atomic,
+    // so a concurrent readDb() never sees a partially-written (truncated,
+    // unparseable) file while a write is in flight.
+    const tmpFile = `${DB_FILE}.${process.pid}.${Date.now()}.tmp`;
+    await fs.writeFile(tmpFile, JSON.stringify(db, null, 2));
+    await fs.rename(tmpFile, DB_FILE);
   }
 
   // ── Identity ───────────────────────────────────────────────
